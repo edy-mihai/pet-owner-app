@@ -47,3 +47,55 @@ The app reads the same `.env` file for its connection settings
 (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`; optionally `POSTGRES_HOST`
 and `POSTGRES_PORT`). The database must be running before you run
 `.\mvnw.cmd verify` or start the app.
+
+## Windows notes
+
+### Docker Desktop on Windows 10 Home (WSL2)
+
+Windows 10 Home has no Hyper-V, so Docker Desktop needs WSL2. In a PowerShell
+opened as administrator run:
+
+```powershell
+wsl --install --no-distribution
+```
+
+Then restart the computer before starting Docker Desktop.
+
+### Low-RAM machines (optional)
+
+WSL2 can take a large share of memory. To cap it, create
+`C:\Users\<name>\.wslconfig`:
+
+```ini
+[wsl2]
+memory=2GB
+processors=2
+```
+
+Then apply it with `wsl --shutdown` and start Docker Desktop again.
+
+### Installing Java 25 next to another JDK
+
+```powershell
+winget install EclipseAdoptium.Temurin.25.JDK
+```
+
+Open a **new** terminal (old ones keep the old environment) and check:
+
+```powershell
+java -version
+echo $env:JAVA_HOME
+```
+
+`java -version` must report 25, and `JAVA_HOME` must point to the Temurin 25
+folder. If either still shows the other JDK, update `JAVA_HOME` and the `Path`
+entry in the Windows environment variables.
+
+### Order of commands
+
+The database must be running before the build, because the tests connect to it:
+
+```powershell
+docker compose up -d
+.\mvnw.cmd -B verify
+```
