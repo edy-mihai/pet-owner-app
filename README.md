@@ -4,8 +4,8 @@ A Java application for pet owners to log vet visits and treatments, find nearby
 pet services, and get food recommendations. Built as a university project
 (Java, databases, entrepreneurship) and as a portfolio piece.
 
-**Status:** early setup. The build and a sample test work; the application
-itself is not implemented yet.
+**Status:** early setup. A Spring Boot 4.1.x skeleton builds, tests and runs;
+the application itself is not implemented yet.
 
 ## Requirements
 
@@ -23,6 +23,14 @@ right version on first use.
 ```
 
 On Linux or macOS use `./mvnw test`.
+
+## Run
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+The app listens on port 8080 and has no endpoints yet.
 
 ## Database (PostgreSQL 18 in Docker)
 

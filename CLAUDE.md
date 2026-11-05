@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Java app for pet owners (log vet visits and treatments, find nearby pet services, get food recommendations). It is a university project (Java, databases and entrepreneurship courses) and a portfolio piece, built to industry standards. **Early setup:** the plain Maven build, a placeholder `Greeter` class and its test exist. Spring Boot is added in its own branch next; until that is merged the project is still plain Maven. No domain code exists yet. See Architecture rules below for constraints on what gets built.
+Java app for pet owners (log vet visits and treatments, find nearby pet services, get food recommendations). It is a university project (Java, databases and entrepreneurship courses) and a portfolio piece, built to industry standards. **Early setup:** a Spring Boot 4.1.x skeleton (`PetOwnerApplication` and a context-loads test), a placeholder `Greeter` class and its test exist. The app listens on port 8080 and has no endpoints yet. No domain code exists yet. See Architecture rules below for constraints on what gets built.
 
 ## Commands
 
@@ -12,6 +12,7 @@ Use the Maven Wrapper; Maven is not installed separately. Requires JDK 25.
 
 - Build + test: `.\mvnw.cmd test` (Windows) / `./mvnw test`
 - Full CI-equivalent build: `./mvnw -B verify` (this is what `.github/workflows/ci.yml` runs on Ubuntu, Temurin 25)
+- Run the app: `.\mvnw.cmd spring-boot:run` (port 8080, no endpoints yet)
 - Single test class: `.\mvnw.cmd test -Dtest=GreeterTest`
 - Single test method: `.\mvnw.cmd test -Dtest=GreeterTest#greetIncludesTheName`
 
@@ -19,7 +20,7 @@ No linter or formatter is configured.
 
 ## Stack and layout
 
-- Target stack: Java 25, Maven, Spring Boot 4.x, PostgreSQL 18 through Spring's `JdbcTemplate`, a REST API with token authentication, a Leaflet/OpenStreetMap map later. Base package `io.github.edymihai.petowner`; `maven.compiler.release` is 25. Until the Spring Boot branch is merged, the only dependency is JUnit Jupiter 5 (test scope).
+- Target stack: Java 25, Maven, Spring Boot 4.x, PostgreSQL 18 through Spring's `JdbcTemplate`, a REST API with token authentication, a Leaflet/OpenStreetMap map later. Base package `io.github.edymihai.petowner`; `maven.compiler.release` is 25. Current dependencies: `spring-boot-starter-webmvc` and, in test scope, `spring-boot-starter-webmvc-test`.
 - PostgreSQL 18 runs via `compose.yaml` (`docker compose up -d`). Credentials come from `.env` (copy `.env.example`), and compose fails fast if any `POSTGRES_*` variable is missing. The port is bound to `127.0.0.1:5432` only. Data lives in the `pgdata` volume (`docker compose down -v` deletes it). `.env` must never be committed.
 - `.gitattributes` forces LF for `mvnw` and CRLF for `*.cmd`. Keep it that way, or the wrapper breaks on the other OS.
 - Dependabot (`.github/dependabot.yml`) opens update PRs for Maven and GitHub Actions. Commit messages follow Conventional Commits (`chore(deps): ...`, `ci: ...`).
