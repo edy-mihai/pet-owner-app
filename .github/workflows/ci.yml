@@ -12,6 +12,25 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Dummy values for the throwaway CI database. These are not secrets.
+    env:
+      POSTGRES_DB: petapp_ci
+      POSTGRES_USER: petapp_ci
+      POSTGRES_PASSWORD: ci-only-password
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: petapp_ci
+          POSTGRES_USER: petapp_ci
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
