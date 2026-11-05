@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Versions of actions used in .github/workflows (checkout, setup-java)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Dependencies and plugins declared in pom.xml (JUnit, compiler, surefire)
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
