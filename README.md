@@ -11,18 +11,21 @@ the application itself is not implemented yet.
 
 - Java 25 (JDK)
 - Git
-- Docker Desktop (only for the PostgreSQL database, used later in the project)
+- Docker Desktop (runs the PostgreSQL database that the app and its tests connect to)
 
 You do not need to install Maven: the included Maven Wrapper downloads the
 right version on first use.
 
 ## Build and test
 
+The database must be running first (`docker compose up -d`, see
+[Database](#database-postgresql-18-in-docker)), because the tests connect to it.
+
 ```powershell
-.\mvnw.cmd test
+.\mvnw.cmd verify
 ```
 
-On Linux or macOS use `./mvnw test`.
+On Linux or macOS use `./mvnw verify`.
 
 ## Run
 
@@ -39,3 +42,8 @@ The app listens on port 8080 and has no endpoints yet.
 3. Stop it: `docker compose down` (add `-v` to also delete the data)
 
 The database is exposed only on `127.0.0.1:5432`.
+
+The app reads the same `.env` file for its connection settings
+(`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`; optionally `POSTGRES_HOST`
+and `POSTGRES_PORT`). The database must be running before you run
+`.\mvnw.cmd verify` or start the app.

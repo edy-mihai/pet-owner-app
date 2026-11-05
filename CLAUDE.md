@@ -10,6 +10,8 @@ Java app for pet owners (log vet visits and treatments, find nearby pet services
 
 Use the Maven Wrapper; Maven is not installed separately. Requires JDK 25.
 
+The database must be running (`docker compose up -d`) before `.\mvnw.cmd verify` or `test`: the context-loads test and `DatabaseConnectionTest` connect to PostgreSQL.
+
 - Build + test: `.\mvnw.cmd test` (Windows) / `./mvnw test`
 - Full CI-equivalent build: `./mvnw -B verify` (this is what `.github/workflows/ci.yml` runs on Ubuntu, Temurin 25)
 - Run the app: `.\mvnw.cmd spring-boot:run` (port 8080, no endpoints yet)
@@ -20,7 +22,7 @@ No linter or formatter is configured.
 
 ## Stack and layout
 
-- Target stack: Java 25, Maven, Spring Boot 4.x, PostgreSQL 18 through Spring's `JdbcTemplate`, a REST API with token authentication, a Leaflet/OpenStreetMap map later. Base package `io.github.edymihai.petowner`; `maven.compiler.release` is 25. Current dependencies: `spring-boot-starter-webmvc` and, in test scope, `spring-boot-starter-webmvc-test`.
+- Target stack: Java 25, Maven, Spring Boot 4.x, PostgreSQL 18 through Spring's `JdbcTemplate`, a REST API with token authentication, a Leaflet/OpenStreetMap map later. Base package `io.github.edymihai.petowner`; `maven.compiler.release` is 25. Current dependencies: `spring-boot-starter-webmvc`, `spring-boot-starter-jdbc`, the PostgreSQL driver (runtime) and, in test scope, `spring-boot-starter-webmvc-test` and `spring-boot-starter-jdbc-test`. `application.properties` imports `.env` (`spring.config.import=optional:file:.env[.properties]`) and builds the datasource from `POSTGRES_*`; CI supplies dummy `POSTGRES_*` values and a `postgres:18` service.
 - PostgreSQL 18 runs via `compose.yaml` (`docker compose up -d`). Credentials come from `.env` (copy `.env.example`), and compose fails fast if any `POSTGRES_*` variable is missing. The port is bound to `127.0.0.1:5432` only. Data lives in the `pgdata` volume (`docker compose down -v` deletes it). `.env` must never be committed.
 - `.gitattributes` forces LF for `mvnw` and CRLF for `*.cmd`. Keep it that way, or the wrapper breaks on the other OS.
 - Dependabot (`.github/dependabot.yml`) opens update PRs for Maven and GitHub Actions. Commit messages follow Conventional Commits (`chore(deps): ...`, `ci: ...`).
