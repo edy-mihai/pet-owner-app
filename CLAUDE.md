@@ -46,7 +46,7 @@ No linter or formatter is configured.
 
 ## Explaining the code
 
-The owner presents and defends all code in class. When writing code, explain the design choice in a few sentences, name the Java and Spring concepts used (interfaces, collections, generics, exceptions, I/O, dependency injection), and finish each task with a short list of what the owner should be able to explain.
+The owner presents and defends all code in class and may not know every concept yet. When writing code, explain the design choice in a few sentences and name the Java and Spring concepts used (interfaces, collections, generics, exceptions, I/O, dependency injection). Finish each task with a short list of what the owner should be able to explain, and explain each item in plain language with a small example.
 
 ## Do not
 
