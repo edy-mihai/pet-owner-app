@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Java app for pet owners (log vet visits and treatments, find nearby pet services, get food recommendations). It is a university project (Java, databases and entrepreneurship courses) and a portfolio piece, built to industry standards. **Early setup:** a Spring Boot 4.1.x skeleton (`PetOwnerApplication` and a context-loads test), a placeholder `Greeter` class and its test exist. The app listens on port 8080 and has no endpoints yet. No domain code exists yet. See Architecture rules below for constraints on what gets built.
+Java app for pet owners (log vet visits and treatments, find nearby pet services, get food recommendations). It is a university project (Java, databases and entrepreneurship courses) and a portfolio piece, built to industry standards. **Early setup:** a Spring Boot 4.1.x skeleton (`PetOwnerApplication` and a context-loads test), a placeholder `Greeter` class and its test exist. The app listens on port 8080 and has no endpoints yet. The domain model, ER diagram and class diagram (`docs/class-diagram.md`) are agreed. The next step is building the console mid-term in small tasks; no domain code exists yet. See Architecture rules and Mid-term design below for constraints on what gets built.
 
 ## Commands
 
@@ -30,11 +30,22 @@ No linter or formatter is configured.
 
 ## Architecture rules (apply to all new code)
 
-- Spring Boot and PostgreSQL are used from the start. Check the Spring Boot 4.x documentation before writing code: many tutorials still target 3.x, and 4.x has breaking changes (Spring Framework 7, Jakarta EE 11).
+- Spring Boot and PostgreSQL are the target stack, but for the 19 Nov mid-term the storage is in memory (see "Mid-term design" below). Check the Spring Boot 4.x documentation before writing code: many tutorials still target 3.x, and 4.x has breaking changes (Spring Framework 7, Jakarta EE 11).
 - Domain classes must not depend on Spring or on any storage technology. Storage sits behind interfaces named after the domain (for example `VisitLog`), not generic `Repository` / `Manager` / `Service` names, so one storage implementation can be replaced by another without touching the domain.
-- Database access uses `JdbcTemplate` with plain SQL. Do not use Spring Data JPA or Hibernate: the owner must be able to explain every SQL statement in the databases course defence.
+- Database access uses `JdbcTemplate` with plain SQL (after 19 Nov; the mid-term uses in-memory storage). Do not use Spring Data JPA or Hibernate: the owner must be able to explain every SQL statement in the databases course defence.
 - The class diagram is graded in the Java course: at least 4 classes, 2 interfaces and 2 collections used by the application, with relationships that match the code. The file requirement is met by a small feature that writes to and reads from a file.
 - Package-by-feature under `io.github.edymihai.petowner`. Keep classes small and single-purpose.
+
+## Mid-term design (console, in-memory)
+
+- The mid-term is a console program: `ConsoleApp` is a plain `main`, separate from `PetOwnerApplication`. The console, `PetCare` and the domain must not import Spring.
+- Storage is in memory: each storage interface (`AccountDirectory`, `PetRegister`, `CarePlanBook`, `VisitLog`) has an `InMemory` implementation. Do not write JDBC implementations or SQL now. Design the interfaces so JDBC fits later: the store assigns ids, and every change is followed by an explicit save.
+- Layers: `Menu` (reads input through `Input`, calls `PetCare`, prints; contains no rules) calls `PetCare` (operations that span several objects), which calls the storage interfaces. A rule about one object lives in that object. Objects refer to each other by id.
+- The domain never calls `LocalDate.now()`; the date is a parameter, and only `ConsoleApp` reads the clock.
+- Custom exceptions are unchecked, one per rule. `Input` checks type and format; domain constructors check meaning.
+- Domain tests are plain JUnit: no `@SpringBootTest`, no database.
+- Packages under `io.github.edymihai.petowner` (package-by-feature): `account` (`Account`, `Role`, `AccountDirectory`, `InMemoryAccountDirectory`), `pet` (`Pet`, `Species`, `PetRegister`, `InMemoryPetRegister`), `careplan` (`CarePlan`, `PlanKind`, `DueStatus`, `TodayItem`, `CarePlanBook`, `InMemoryCarePlanBook`), `visit` (`VetVisit`, `VisitLog`, `InMemoryVisitLog`), `report` (`PetHistory`, `PetHistoryReport`, `HistoryFile`), `console` (`ConsoleApp`, `Menu`, `Input`). `PetCare` and the custom exceptions stay in the root package. The feature packages must not depend on `PetCare`, `console` or Spring.
+- `docs/class-diagram.md` is the planned diagram; if the code diverges from it, say so instead of silently changing either.
 
 ## Workflow
 
