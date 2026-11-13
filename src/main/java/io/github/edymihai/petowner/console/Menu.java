@@ -13,6 +13,7 @@ import java.io.PrintStream;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /** Reads through Input, calls PetCare and prints. Contains no rules. */
 public class Menu {
@@ -81,17 +82,44 @@ public class Menu {
     }
 
     private void addPet() {
-        long ownerId = input.readInt("Owner account id: ", 1, Integer.MAX_VALUE);
-        String name = input.readNonBlank("Pet name: ");
-        Species species = input.readChoice("Species", Species.class);
-        LocalDate birthDate = input.readOptionalDate("Birth date (yyyy-MM-dd, blank for none): ").orElse(null);
-        String notes = input.readOptionalText("Notes (blank for none): ").orElse(null);
+        Optional<Account> owner = chooseAccountByName("Owner name: ");
+        if (owner.isEmpty()) {
+            return;
+        }
+        long ownerId = owner.get().getId();
         try {
+            petCare.requireCanOwnPets(ownerId);
+            String name = input.readNonBlank("Pet name: ");
+            Species species = input.readChoice("Species", Species.class);
+            LocalDate birthDate = input.readOptionalDate("Birth date (yyyy-MM-dd, blank for none): ").orElse(null);
+            String notes = input.readOptionalText("Notes (blank for none): ").orElse(null);
             Pet pet = petCare.addPet(ownerId, name, species, birthDate, notes, today);
             out.println("Added pet " + pet.getId() + ".");
         } catch (AdminCannotOwnPetException | IllegalArgumentException | NoSuchElementException e) {
             out.println(e.getMessage());
         }
+    }
+
+    /**
+     * Asks for a name and finds the account. With several matches the user picks by number.
+     * Prints a message and returns empty when no account has that name.
+     */
+    private Optional<Account> chooseAccountByName(String prompt) {
+        String name = input.readNonBlank(prompt);
+        List<Account> matches = petCare.findAccountsByName(name);
+        if (matches.isEmpty()) {
+            out.println("No account named " + name + ".");
+            return Optional.empty();
+        }
+        if (matches.size() == 1) {
+            return Optional.of(matches.get(0));
+        }
+        for (int i = 0; i < matches.size(); i++) {
+            Account a = matches.get(i);
+            out.println((i + 1) + ") " + a.getName() + " <" + a.getEmail() + ">");
+        }
+        int pick = input.readInt("Which one? ", 1, matches.size());
+        return Optional.of(matches.get(pick - 1));
     }
 
     private void listPets() {
