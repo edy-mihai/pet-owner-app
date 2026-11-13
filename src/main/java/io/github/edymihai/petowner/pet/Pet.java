@@ -32,6 +32,10 @@ public class Pet {
         if (since == null) {
             throw new IllegalArgumentException("Owner since date must not be null");
         }
+        if (birthDate != null && birthDate.isAfter(since)) {
+            throw new IllegalArgumentException("Birth date " + birthDate + " is after the owner since date "
+                    + since + ": a pet cannot be owned before it is born");
+        }
         this.name = name;
         this.species = species;
         this.birthDate = birthDate;
