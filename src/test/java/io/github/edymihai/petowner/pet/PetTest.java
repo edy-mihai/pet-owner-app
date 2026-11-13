@@ -42,6 +42,24 @@ class PetTest {
     }
 
     @Test
+    void birthDateAfterTheOwnerSinceDateIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Pet("Rex", Species.DOG, DAY1.plusDays(1), null, 1L, DAY1));
+    }
+
+    @Test
+    void birthDateOnTheSinceDayIsAllowed() {
+        Pet pet = new Pet("Rex", Species.DOG, DAY1, null, 1L, DAY1);
+
+        assertEquals(DAY1, pet.getBirthDate());
+    }
+
+    @Test
+    void nullBirthDateIsAllowed() {
+        assertNull(new Pet("Rex", Species.DOG, null, null, 1L, DAY1).getBirthDate());
+    }
+
+    @Test
     void invalidConstructorArgumentsAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> new Pet(" ", Species.DOG, null, null, 1L, DAY1));
         assertThrows(IllegalArgumentException.class, () -> new Pet(null, Species.DOG, null, null, 1L, DAY1));
