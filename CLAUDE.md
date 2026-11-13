@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Java app for pet owners (log vet visits and treatments, find nearby pet services, get food recommendations). It is a university project (Java, databases and entrepreneurship courses) and a portfolio piece, built to industry standards. **Early setup:** a Spring Boot 4.1.x skeleton (`PetOwnerApplication` and a context-loads test), a placeholder `Greeter` class and its test exist. The app listens on port 8080 and has no endpoints yet. The domain model, ER diagram and class diagram (`docs/class-diagram.md`) are agreed. The next step is building the console mid-term in small tasks; no domain code exists yet. See Architecture rules and Mid-term design below for constraints on what gets built.
+Java app for pet owners (log vet visits and treatments, find nearby pet services, get food recommendations). It is a university project (Java, databases and entrepreneurship courses) and a portfolio piece, built to industry standards. **Early setup:** a Spring Boot 4.1.x skeleton (`PetOwnerApplication` and a context-loads test) exists. The app listens on port 8080 and has no endpoints yet. The domain model, ER diagram and class diagram (`docs/class-diagram.md`) are agreed. The account and pet domain (in-memory stores and `PetCare`) exists; the console is next, built in small tasks. See Architecture rules and Mid-term design below for constraints on what gets built.
 
 ## Commands
 
@@ -15,8 +15,8 @@ The database must be running (`docker compose up -d`) before `.\mvnw.cmd verify`
 - Build + test: `.\mvnw.cmd test` (Windows) / `./mvnw test`
 - Full CI-equivalent build: `./mvnw -B verify` (this is what `.github/workflows/ci.yml` runs on Ubuntu, Temurin 25)
 - Run the app: `.\mvnw.cmd spring-boot:run` (port 8080, no endpoints yet)
-- Single test class: `.\mvnw.cmd test -Dtest=GreeterTest`
-- Single test method: `.\mvnw.cmd test -Dtest=GreeterTest#greetIncludesTheName`
+- Single test class: `.\mvnw.cmd test -Dtest=AccountTest`
+- Single test method: `.\mvnw.cmd test -Dtest=AccountTest#blankOrNullNameIsRejected`
 
 No linter or formatter is configured.
 
