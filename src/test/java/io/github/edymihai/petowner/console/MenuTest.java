@@ -2,7 +2,9 @@ package io.github.edymihai.petowner.console;
 
 import io.github.edymihai.petowner.PetCare;
 import io.github.edymihai.petowner.account.InMemoryAccountDirectory;
+import io.github.edymihai.petowner.account.Role;
 import io.github.edymihai.petowner.pet.InMemoryPetRegister;
+import io.github.edymihai.petowner.pet.Species;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -99,6 +101,100 @@ class MenuTest {
         String text = run("1\nAna\na@x.com\nowner\n1\nAna2\na@x.com\nowner\n0\n");
 
         assertTrue(text.contains("already exists"));
+    }
+
+    private void anaAndBobWithRex() {
+        petCare.addAccount("Ana", "ana@x.com", Role.OWNER);
+        petCare.addAccount("Bob", "bob@x.com", Role.OWNER);
+        petCare.addPet(1L, "Rex", Species.DOG, null, null, TODAY);
+    }
+
+    @Test
+    void deleteAccountWithYesDeletesTheAccountAndItsSolePets() {
+        anaAndBobWithRex();
+
+        String text = run("5\nAna\ny\n0\n");
+
+        assertTrue(text.contains("These pets will be deleted with the account:"));
+        assertTrue(text.contains("- Rex (DOG)"));
+        assertTrue(text.contains("Deleted account Ana and 1 pet(s)."));
+        assertEquals(1, petCare.listAccounts().size());
+        assertTrue(petCare.listPets().isEmpty());
+    }
+
+    @Test
+    void deleteAccountWithNoDeletesNothing() {
+        anaAndBobWithRex();
+
+        String text = run("5\nAna\nn\n0\n");
+
+        assertTrue(text.contains("Nothing deleted."));
+        assertEquals(2, petCare.listAccounts().size());
+        assertEquals(1, petCare.listPets().size());
+    }
+
+    @Test
+    void deleteAccountWithABlankAnswerDeletesNothing() {
+        anaAndBobWithRex();
+
+        run("5\nAna\n\n0\n");
+
+        assertEquals(2, petCare.listAccounts().size());
+        assertEquals(1, petCare.listPets().size());
+    }
+
+    @Test
+    void deletePetAfterConfirmation() {
+        anaAndBobWithRex();
+
+        String text = run("6\nAna\n1\ny\n0\n");
+
+        assertTrue(text.contains("1) Rex (DOG)"));
+        assertTrue(text.contains("Deleted pet Rex."));
+        assertTrue(petCare.listPets().isEmpty());
+    }
+
+    @Test
+    void addAndRemoveACoOwner() {
+        anaAndBobWithRex();
+
+        String text = run("7\nAna\n1\nBob\n4\n8\nBob\n1\n4\n0\n");
+
+        assertTrue(text.contains("Added Bob as co-owner of Rex."));
+        assertTrue(text.contains("owners Ana, Bob") || text.contains("owners Bob, Ana"));
+        assertTrue(text.contains("Removed Bob from Rex."));
+        assertFalse(petCare.listPets().get(0).isOwnedBy(2L));
+        assertTrue(petCare.listPets().get(0).isOwnedBy(1L));
+    }
+
+    @Test
+    void addingAnExistingOwnerPrintsAMessage() {
+        anaAndBobWithRex();
+
+        String text = run("7\nAna\n1\nAna\n0\n");
+
+        assertTrue(text.contains("Ana already owns Rex."));
+    }
+
+    @Test
+    void anAdminCannotBeACoOwner() {
+        anaAndBobWithRex();
+        petCare.addAccount("Root", "root@x.com", Role.ADMIN);
+
+        String text = run("7\nAna\n1\nRoot\n0\n");
+
+        assertTrue(text.contains("is an ADMIN and cannot own a pet"));
+        assertEquals(1, petCare.listPets().get(0).getOwners().size());
+    }
+
+    @Test
+    void removingTheLastOwnerPrintsTheMessage() {
+        anaAndBobWithRex();
+
+        String text = run("8\nAna\n1\n0\n");
+
+        assertTrue(text.contains("is the last owner of the pet and cannot be removed"));
+        assertTrue(petCare.listPets().get(0).isOwnedBy(1L));
     }
 
     @Test
