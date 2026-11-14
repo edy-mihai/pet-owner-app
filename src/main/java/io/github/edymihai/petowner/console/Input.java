@@ -86,6 +86,20 @@ public class Input {
         return line.isEmpty() ? Optional.empty() : Optional.of(line);
     }
 
+    /** Accepts y/yes/n/no in any case. A blank answer means no. */
+    public boolean readYesNo(String prompt) {
+        while (true) {
+            String line = readLine(prompt).strip().toLowerCase();
+            if (line.equals("y") || line.equals("yes")) {
+                return true;
+            }
+            if (line.isEmpty() || line.equals("n") || line.equals("no")) {
+                return false;
+            }
+            out.println("Please answer y or n.");
+        }
+    }
+
     /** Shows the constants of the enum; accepts the name (any case) or its number. */
     public <E extends Enum<E>> E readChoice(String prompt, Class<E> type) {
         E[] values = type.getEnumConstants();
