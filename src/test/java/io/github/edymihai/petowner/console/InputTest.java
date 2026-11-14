@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.Scanner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,6 +22,29 @@ class InputTest {
     private Input inputWith(String script) {
         Scanner scanner = new Scanner(new ByteArrayInputStream(script.getBytes()));
         return new Input(scanner, new PrintStream(output));
+    }
+
+    @Test
+    void readYesNoAcceptsYesAndNoInAnyCase() {
+        Input input = inputWith("y\nYES\nn\nNo\n");
+
+        assertTrue(input.readYesNo("? "));
+        assertTrue(input.readYesNo("? "));
+        assertFalse(input.readYesNo("? "));
+        assertFalse(input.readYesNo("? "));
+    }
+
+    @Test
+    void readYesNoBlankMeansNo() {
+        assertFalse(inputWith("\n").readYesNo("? "));
+    }
+
+    @Test
+    void readYesNoReAsksOnAnythingElse() {
+        Input input = inputWith("maybe\n1\ny\n");
+
+        assertTrue(input.readYesNo("? "));
+        assertTrue(output.toString().contains("Please answer y or n."));
     }
 
     @Test
