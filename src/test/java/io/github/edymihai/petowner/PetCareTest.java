@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -120,5 +121,181 @@ class PetCareTest {
     void addPetForAnUnknownAccountFails() {
         assertThrows(NoSuchElementException.class,
                 () -> petCare.addPet(99L, "Rex", Species.DOG, null, null, TODAY));
+    }
+
+    private Account owner(String name) {
+        return petCare.addAccount(name, name.toLowerCase() + "@example.com", Role.OWNER);
+    }
+
+    private Pet pet(Account owner, String name) {
+        return petCare.addPet(owner.getId(), name, Species.DOG, null, null, TODAY);
+    }
+
+    @Test
+    void removeAccountDeletesAPetItOwnsAlone() {
+        Account ana = owner("Ana");
+        pet(ana, "Rex");
+
+        petCare.removeAccount(ana.getId());
+
+        assertTrue(petCare.listPets().isEmpty());
+        assertTrue(petCare.listAccounts().isEmpty());
+    }
+
+    @Test
+    void removeAccountKeepsACoOwnedPetWithTheRemainingOwner() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet rex = pet(ana, "Rex");
+        petCare.addOwner(rex.getId(), bob.getId(), TODAY);
+
+        petCare.removeAccount(ana.getId());
+
+        assertEquals(1, petCare.listPets().size());
+        assertTrue(rex.isOwnedBy(bob.getId()));
+        assertFalse(rex.isOwnedBy(ana.getId()));
+        assertEquals(1, petCare.listAccounts().size());
+    }
+
+    @Test
+    void removeAccountWithOneSharedAndOneSolePet() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet shared = pet(ana, "Shared");
+        pet(ana, "Solo");
+        petCare.addOwner(shared.getId(), bob.getId(), TODAY);
+
+        petCare.removeAccount(ana.getId());
+
+        assertEquals(List.of("Shared"), petCare.listPets().stream().map(Pet::getName).toList());
+        assertTrue(shared.isOwnedBy(bob.getId()));
+    }
+
+    @Test
+    void removeAccountWorksForAnAdmin() {
+        Account admin = petCare.addAccount("Root", "root@example.com", Role.ADMIN);
+
+        petCare.removeAccount(admin.getId());
+
+        assertTrue(petCare.listAccounts().isEmpty());
+    }
+
+    @Test
+    void removeAccountWithAnUnknownIdFails() {
+        assertThrows(NoSuchElementException.class, () -> petCare.removeAccount(99L));
+    }
+
+    @Test
+    void petsOnlyOwnedByIgnoresSharedPetsAndChangesNothing() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet shared = pet(ana, "Shared");
+        pet(ana, "Solo");
+        petCare.addOwner(shared.getId(), bob.getId(), TODAY);
+
+        List<Pet> sole = petCare.petsOnlyOwnedBy(ana.getId());
+
+        assertEquals(List.of("Solo"), sole.stream().map(Pet::getName).toList());
+        assertEquals(2, petCare.listPets().size());
+        assertTrue(petCare.petsOnlyOwnedBy(bob.getId()).isEmpty());
+    }
+
+    @Test
+    void deletePetRemovesIt() {
+        Pet rex = pet(owner("Ana"), "Rex");
+
+        petCare.deletePet(rex.getId());
+
+        assertTrue(petCare.listPets().isEmpty());
+    }
+
+    @Test
+    void deletePetWithAnUnknownIdFails() {
+        assertThrows(NoSuchElementException.class, () -> petCare.deletePet(99L));
+    }
+
+    @Test
+    void addOwnerAddsACoOwnerSinceToday() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet rex = pet(ana, "Rex");
+        LocalDate later = TODAY.plusDays(1);
+
+        assertTrue(petCare.addOwner(rex.getId(), bob.getId(), later));
+
+        assertEquals(later, rex.getOwners().get(bob.getId()));
+    }
+
+    @Test
+    void addOwnerReturnsFalseWhenAlreadyAnOwner() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+
+        assertFalse(petCare.addOwner(rex.getId(), ana.getId(), TODAY.plusDays(1)));
+
+        assertEquals(TODAY, rex.getOwners().get(ana.getId()));
+    }
+
+    @Test
+    void addOwnerRejectsAnAdmin() {
+        Pet rex = pet(owner("Ana"), "Rex");
+        Account admin = petCare.addAccount("Root", "root@example.com", Role.ADMIN);
+
+        assertThrows(AdminCannotOwnPetException.class,
+                () -> petCare.addOwner(rex.getId(), admin.getId(), TODAY));
+        assertEquals(1, rex.getOwners().size());
+    }
+
+    @Test
+    void addOwnerWithUnknownIdsFails() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+
+        assertThrows(NoSuchElementException.class, () -> petCare.addOwner(99L, ana.getId(), TODAY));
+        assertThrows(NoSuchElementException.class, () -> petCare.addOwner(rex.getId(), 99L, TODAY));
+    }
+
+    @Test
+    void removeOwnerRemovesACoOwner() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet rex = pet(ana, "Rex");
+        petCare.addOwner(rex.getId(), bob.getId(), TODAY);
+
+        assertTrue(petCare.removeOwner(rex.getId(), bob.getId()));
+
+        assertFalse(rex.isOwnedBy(bob.getId()));
+        assertTrue(rex.isOwnedBy(ana.getId()));
+    }
+
+    @Test
+    void removeOwnerRefusesTheLastOwner() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+
+        assertThrows(CannotRemoveLastOwnerException.class,
+                () -> petCare.removeOwner(rex.getId(), ana.getId()));
+        assertTrue(rex.isOwnedBy(ana.getId()));
+    }
+
+    @Test
+    void removeOwnerReturnsFalseForANonOwner() {
+        Account bob = owner("Bob");
+        Pet rex = pet(owner("Ana"), "Rex");
+
+        assertFalse(petCare.removeOwner(rex.getId(), bob.getId()));
+    }
+
+    @Test
+    void ownersOfListsTheOwnerAccountsAndPetsOfListsTheirPets() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet rex = pet(ana, "Rex");
+        petCare.addOwner(rex.getId(), bob.getId(), TODAY);
+
+        assertEquals(2, petCare.ownersOf(rex.getId()).size());
+        assertTrue(petCare.ownersOf(rex.getId()).stream().anyMatch(a -> a.getName().equals("Bob")));
+        assertEquals(1, petCare.petsOf(bob.getId()).size());
+        assertThrows(NoSuchElementException.class, () -> petCare.ownersOf(99L));
     }
 }
