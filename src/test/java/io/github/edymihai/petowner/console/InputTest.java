@@ -96,4 +96,20 @@ class InputTest {
     void endOfInputThrowsEndOfInputException() {
         assertThrows(EndOfInputException.class, () -> inputWith("").readNonBlank("x: "));
     }
+
+    @Test
+    void readOptionalIntBlankMeansNone() {
+        assertTrue(inputWith("\n").readOptionalInt("n: ").isEmpty());
+    }
+
+    @Test
+    void readOptionalIntReadsANumber() {
+        assertEquals(7, inputWith("7\n").readOptionalInt("n: ").orElseThrow());
+    }
+
+    @Test
+    void readOptionalIntReAsksAfterText() {
+        assertEquals(3, inputWith("abc\n3\n").readOptionalInt("n: ").orElseThrow());
+        assertTrue(output.toString().contains("whole number"));
+    }
 }
