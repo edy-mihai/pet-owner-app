@@ -7,6 +7,8 @@ import io.github.edymihai.petowner.EndOfInputException;
 import io.github.edymihai.petowner.PetCare;
 import io.github.edymihai.petowner.account.Account;
 import io.github.edymihai.petowner.account.Role;
+import io.github.edymihai.petowner.careplan.CarePlan;
+import io.github.edymihai.petowner.careplan.PlanKind;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.Species;
 
@@ -38,7 +40,7 @@ public class Menu {
             boolean running = true;
             while (running) {
                 printMenu();
-                switch (input.readInt("Choose: ", 0, 8)) {
+                switch (input.readInt("Choose: ", 0, 10)) {
                     case 1 -> addAccount();
                     case 2 -> listAccounts();
                     case 3 -> addPet();
@@ -47,6 +49,8 @@ public class Menu {
                     case 6 -> deletePet();
                     case 7 -> addCoOwner();
                     case 8 -> removeCoOwner();
+                    case 9 -> addCarePlan();
+                    case 10 -> listCarePlans();
                     default -> running = false;
                 }
             }
@@ -66,6 +70,8 @@ public class Menu {
         out.println("6) Delete pet");
         out.println("7) Add co-owner");
         out.println("8) Remove co-owner");
+        out.println("9) Add care plan");
+        out.println("10) List care plans");
         out.println("0) Exit");
     }
 
@@ -253,6 +259,59 @@ public class Menu {
                 out.println(account.get().getName() + " does not own " + p.getName() + ".");
             }
         } catch (CannotRemoveLastOwnerException | NoSuchElementException | IllegalArgumentException e) {
+            out.println(e.getMessage());
+        }
+    }
+
+    private void addCarePlan() {
+        try {
+            Optional<Account> owner = chooseAccountByName("Owner name: ");
+            if (owner.isEmpty()) {
+                return;
+            }
+            Optional<Pet> pet = choosePetOf(owner.get());
+            if (pet.isEmpty()) {
+                return;
+            }
+            String title = input.readNonBlank("Title: ");
+            PlanKind kind = input.readChoice("Kind", PlanKind.class);
+            LocalDate start = input.readDate("Start date (yyyy-MM-dd): ");
+            Integer interval = input.readOptionalInt("Interval in days (blank for one-off): ").orElse(null);
+            LocalDate end = interval == null
+                    ? null
+                    : input.readOptionalDate("End date (yyyy-MM-dd, blank for none): ").orElse(null);
+            CarePlan plan = petCare.addCarePlan(pet.get().getId(), title, kind, start, interval, end);
+            out.println("Added care plan " + plan.getId() + ".");
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            out.println(e.getMessage());
+        }
+    }
+
+    private void listCarePlans() {
+        try {
+            Optional<Account> owner = chooseAccountByName("Owner name: ");
+            if (owner.isEmpty()) {
+                return;
+            }
+            Optional<Pet> pet = choosePetOf(owner.get());
+            if (pet.isEmpty()) {
+                return;
+            }
+            List<CarePlan> plans = petCare.plansOf(pet.get().getId());
+            if (plans.isEmpty()) {
+                out.println("No care plans yet.");
+            }
+            for (CarePlan p : plans) {
+                String schedule = p.getIntervalDays() == null
+                        ? "one-off on " + p.getStartDate()
+                        : "every " + p.getIntervalDays() + " days from " + p.getStartDate()
+                                + (p.getEndDate() == null ? "" : " until " + p.getEndDate());
+                out.println(p.getTitle() + " (" + p.getKind() + "), " + schedule
+                        + ", last given " + (p.getLastGivenDate() == null ? "never" : p.getLastGivenDate())
+                        + ", next due " + p.nextDue().map(LocalDate::toString).orElse("-")
+                        + ", " + p.statusOn(today));
+            }
+        } catch (NoSuchElementException | IllegalArgumentException e) {
             out.println(e.getMessage());
         }
     }

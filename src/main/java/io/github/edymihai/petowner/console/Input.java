@@ -81,6 +81,21 @@ public class Input {
     }
 
     /** A blank answer means "none". */
+    public Optional<Integer> readOptionalInt(String prompt) {
+        while (true) {
+            String line = readLine(prompt).strip();
+            if (line.isEmpty()) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(Integer.parseInt(line));
+            } catch (NumberFormatException e) {
+                out.println("Please type a whole number, or leave blank.");
+            }
+        }
+    }
+
+    /** A blank answer means "none". */
     public Optional<String> readOptionalText(String prompt) {
         String line = readLine(prompt).strip();
         return line.isEmpty() ? Optional.empty() : Optional.of(line);

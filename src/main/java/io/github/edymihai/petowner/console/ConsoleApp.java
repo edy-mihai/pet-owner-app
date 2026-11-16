@@ -2,6 +2,7 @@ package io.github.edymihai.petowner.console;
 
 import io.github.edymihai.petowner.PetCare;
 import io.github.edymihai.petowner.account.InMemoryAccountDirectory;
+import io.github.edymihai.petowner.careplan.InMemoryCarePlanBook;
 import io.github.edymihai.petowner.pet.InMemoryPetRegister;
 
 import java.time.LocalDate;
@@ -11,7 +12,8 @@ import java.util.Scanner;
 public class ConsoleApp {
 
     public static void main(String[] args) {
-        PetCare petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister());
+        PetCare petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
+                new InMemoryCarePlanBook());
         LocalDate today = LocalDate.now();
         Input input = new Input(new Scanner(System.in), System.out);
         new Menu(input, petCare, System.out, today).run();
