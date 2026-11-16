@@ -1,8 +1,12 @@
 package io.github.edymihai.petowner;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+import io.github.edymihai.petowner.careplan.PlanKind;
+import io.github.edymihai.petowner.careplan.CarePlan;
 import io.github.edymihai.petowner.account.Account;
 import io.github.edymihai.petowner.account.InMemoryAccountDirectory;
 import io.github.edymihai.petowner.account.Role;
+import io.github.edymihai.petowner.careplan.InMemoryCarePlanBook;
 import io.github.edymihai.petowner.pet.InMemoryPetRegister;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.Species;
@@ -26,7 +30,8 @@ class PetCareTest {
 
     @BeforeEach
     void setUp() {
-        petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister());
+        petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
+            new InMemoryCarePlanBook());
     }
 
     @Test
@@ -297,5 +302,76 @@ class PetCareTest {
         assertTrue(petCare.ownersOf(rex.getId()).stream().anyMatch(a -> a.getName().equals("Bob")));
         assertEquals(1, petCare.petsOf(bob.getId()).size());
         assertThrows(NoSuchElementException.class, () -> petCare.ownersOf(99L));
+    }
+
+    @Test
+    void addCarePlanSavesAPlanForThePet() {
+        Pet rex = pet(owner("Ana"), "Rex");
+
+        CarePlan plan = petCare.addCarePlan(rex.getId(), "Pills", PlanKind.MEDICATION,
+                TODAY, 7, null);
+
+        assertEquals(1, plan.getId());
+        assertEquals(rex.getId(), plan.getPetId());
+        assertNull(plan.getLastGivenDate());
+        assertEquals(List.of(plan), petCare.plansOf(rex.getId()));
+    }
+
+    @Test
+    void addCarePlanForAnUnknownPetFails() {
+        assertThrows(NoSuchElementException.class,
+                () -> petCare.addCarePlan(99L, "Pills", PlanKind.MEDICATION, TODAY, 7, null));
+    }
+
+    @Test
+    void addCarePlanWithBrokenRuleIsNotSaved() {
+        Pet rex = pet(owner("Ana"), "Rex");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> petCare.addCarePlan(rex.getId(), "Shot", PlanKind.VACCINE, TODAY, null, TODAY));
+        assertTrue(petCare.plansOf(rex.getId()).isEmpty());
+    }
+
+    @Test
+    void plansOfListsOnlyThatPetsPlans() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+        Pet tom = pet(ana, "Tom");
+        petCare.addCarePlan(rex.getId(), "A", PlanKind.OTHER, TODAY, 7, null);
+        petCare.addCarePlan(tom.getId(), "B", PlanKind.OTHER, TODAY, 7, null);
+
+        assertEquals(1, petCare.plansOf(rex.getId()).size());
+        assertEquals("B", petCare.plansOf(tom.getId()).get(0).getTitle());
+        assertThrows(NoSuchElementException.class, () -> petCare.plansOf(99L));
+    }
+
+    @Test
+    void deletePetDeletesItsCarePlansButNotOthers() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+        Pet tom = pet(ana, "Tom");
+        petCare.addCarePlan(rex.getId(), "A", PlanKind.OTHER, TODAY, 7, null);
+        petCare.addCarePlan(tom.getId(), "B", PlanKind.OTHER, TODAY, 7, null);
+
+        petCare.deletePet(rex.getId());
+
+        assertThrows(NoSuchElementException.class, () -> petCare.plansOf(rex.getId()));
+        assertEquals(1, petCare.plansOf(tom.getId()).size());
+    }
+
+    @Test
+    void removeAccountDeletesCarePlansOfSoleOwnedPetsOnly() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet solo = pet(ana, "Solo");
+        Pet shared = pet(ana, "Shared");
+        petCare.addOwner(shared.getId(), bob.getId(), TODAY);
+        petCare.addCarePlan(solo.getId(), "A", PlanKind.OTHER, TODAY, 7, null);
+        petCare.addCarePlan(shared.getId(), "B", PlanKind.OTHER, TODAY, 7, null);
+
+        petCare.removeAccount(ana.getId());
+
+        assertEquals(1, petCare.plansOf(shared.getId()).size());
+        assertEquals(1, petCare.listPets().size());
     }
 }

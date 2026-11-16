@@ -3,6 +3,9 @@ package io.github.edymihai.petowner;
 import io.github.edymihai.petowner.account.Account;
 import io.github.edymihai.petowner.account.AccountDirectory;
 import io.github.edymihai.petowner.account.Role;
+import io.github.edymihai.petowner.careplan.CarePlan;
+import io.github.edymihai.petowner.careplan.CarePlanBook;
+import io.github.edymihai.petowner.careplan.PlanKind;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.PetRegister;
 import io.github.edymihai.petowner.pet.Species;
@@ -17,10 +20,12 @@ public class PetCare {
 
     private final AccountDirectory accounts;
     private final PetRegister pets;
+    private final CarePlanBook plans;
 
-    public PetCare(AccountDirectory accounts, PetRegister pets) {
+    public PetCare(AccountDirectory accounts, PetRegister pets, CarePlanBook plans) {
         this.accounts = accounts;
         this.pets = pets;
+        this.plans = plans;
     }
 
     public Account addAccount(String name, String email, Role role) {
@@ -67,7 +72,8 @@ public class PetCare {
     /**
      * Rule R5: a pet the account owns alone is deleted, a shared pet just loses this owner.
      * The account is deleted last. Throws NoSuchElementException for an unknown id.
-     * TODO (tasks 5 and 7): also delete the care plans and visits of every deleted pet.
+     * The care plans of every deleted pet are deleted too.
+     * TODO (task 7): also delete the visits of every deleted pet.
      */
     public void removeAccount(long accountId) {
         if (accounts.findById(accountId).isEmpty()) {
@@ -75,6 +81,7 @@ public class PetCare {
         }
         for (Pet pet : pets.findByOwner(accountId)) {
             if (pet.getOwners().size() == 1) {
+                plans.deleteByPetId(pet.getId());
                 pets.delete(pet.getId());
             } else {
                 pet.removeOwner(accountId);
@@ -86,10 +93,12 @@ public class PetCare {
 
     /**
      * Deletes a pet. Co-owners are equal, so there is no owner check.
-     * TODO (tasks 5 and 7): also delete the pet's care plans and visits.
+     * Its care plans are deleted too.
+     * TODO (task 7): also delete the pet's visits.
      */
     public void deletePet(long petId) {
         findPet(petId);
+        plans.deleteByPetId(petId);
         pets.delete(petId);
     }
 
@@ -111,6 +120,19 @@ public class PetCare {
         boolean removed = pet.removeOwner(accountId);
         pets.save(pet);
         return removed;
+    }
+
+    /** Adds a care plan that has never been given. Throws NoSuchElementException for an unknown pet. */
+    public CarePlan addCarePlan(long petId, String title, PlanKind kind, LocalDate startDate,
+                                Integer intervalDays, LocalDate endDate) {
+        findPet(petId);
+        return plans.save(new CarePlan(petId, title, kind, startDate, intervalDays, endDate, null));
+    }
+
+    /** The care plans of a pet. Throws NoSuchElementException for an unknown pet. */
+    public List<CarePlan> plansOf(long petId) {
+        findPet(petId);
+        return plans.findByPetId(petId);
     }
 
     public List<Pet> petsOf(long accountId) {

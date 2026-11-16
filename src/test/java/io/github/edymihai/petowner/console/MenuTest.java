@@ -3,6 +3,7 @@ package io.github.edymihai.petowner.console;
 import io.github.edymihai.petowner.PetCare;
 import io.github.edymihai.petowner.account.InMemoryAccountDirectory;
 import io.github.edymihai.petowner.account.Role;
+import io.github.edymihai.petowner.careplan.InMemoryCarePlanBook;
 import io.github.edymihai.petowner.pet.InMemoryPetRegister;
 import io.github.edymihai.petowner.pet.Species;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,8 @@ class MenuTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 13);
 
     private final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    private final PetCare petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister());
+    private final PetCare petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
+            new InMemoryCarePlanBook());
 
     private String run(String script) {
         PrintStream out = new PrintStream(output);
@@ -213,5 +215,54 @@ class MenuTest {
 
         assertTrue(text.contains("Goodbye."));
         assertTrue(petCare.listAccounts().isEmpty());
+    }
+
+    private static final String ANA_WITH_REX = "1\nAna\nana@example.com\nowner\n3\nAna\nRex\ndog\n\n\n";
+
+    @Test
+    void addARecurringCarePlanThenListIt() {
+        String text = run(ANA_WITH_REX
+                + "9\nAna\n1\nPills\nmedication\n2026-11-01\n7\n2026-12-01\n"
+                + "10\nAna\n1\n0\n");
+
+        assertTrue(text.contains("Added care plan 1."));
+        assertTrue(text.contains("Pills (MEDICATION), every 7 days from 2026-11-01 until 2026-12-01, "
+                + "last given never, next due 2026-11-01, OVERDUE"));
+    }
+
+    @Test
+    void aOneOffCarePlanDoesNotAskForAnEndDate() {
+        String text = run(ANA_WITH_REX
+                + "9\nAna\n1\nShot\nvaccine\n2026-11-20\n\n"
+                + "10\nAna\n1\n0\n");
+
+        assertFalse(text.contains("End date"));
+        assertTrue(text.contains("Shot (VACCINE), one-off on 2026-11-20, "
+                + "last given never, next due 2026-11-20, NOT_STARTED"));
+    }
+
+    @Test
+    void anInvalidIntervalPrintsTheMessageAndSavesNothing() {
+        String text = run(ANA_WITH_REX
+                + "9\nAna\n1\nPills\nmedication\n2026-11-01\n0\n\n"
+                + "10\nAna\n1\n0\n");
+
+        assertTrue(text.contains("Interval must be at least 1 day"));
+        assertTrue(text.contains("No care plans yet."));
+    }
+
+    @Test
+    void listingCarePlansOfAPetWithNoneSaysSo() {
+        String text = run(ANA_WITH_REX + "10\nAna\n1\n0\n");
+
+        assertTrue(text.contains("No care plans yet."));
+    }
+
+    @Test
+    void carePlanOptionsForAnOwnerWithoutPetsReturnToTheMenu() {
+        String text = run("1\nAna\nana@example.com\nowner\n9\nAna\n10\nAna\n0\n");
+
+        assertTrue(text.contains("Ana has no pets."));
+        assertTrue(text.contains("Goodbye."));
     }
 }
