@@ -227,7 +227,7 @@ class MenuTest {
         String nl = System.lineSeparator();
         assertTrue(text.contains("3) Delete" + nl + "0) Back"));
         assertTrue(text.contains("5) Remove co-owner" + nl + "0) Back"));
-        assertTrue(text.contains("2) List" + nl + "0) Back"));
+        assertTrue(text.contains("4) Mark as given" + nl + "0) Back"));
         // main menu is shown at start and after each of the three submenus
         assertEquals(4, text.split("1\\) Accounts", -1).length - 1);
         assertTrue(text.contains("Goodbye."));
@@ -252,9 +252,9 @@ class MenuTest {
 
     @Test
     void anInvalidChoiceInASubmenuIsAskedAgainAndStaysThere() {
-        String text = run("3\n3\nabc\n2\nNobody\n0\n0\n");
+        String text = run("3\n5\nabc\n2\nNobody\n0\n0\n");
 
-        assertTrue(text.contains("Please type a number from 0 to 2."));
+        assertTrue(text.contains("Please type a number from 0 to 4."));
         assertTrue(text.contains("That is not a number."));
         // after the bad choices the submenu still handled "2" (List care plans)
         assertTrue(text.contains("No account named Nobody."));
@@ -347,6 +347,86 @@ class MenuTest {
 
         assertTrue(text.contains("Ana has no pets."));
         assertTrue(text.contains("Goodbye."));
+    }
+
+    // Care plans submenu: 3 = Today list, 4 = Mark as given. TODAY is 2026-11-13.
+
+    @Test
+    void todayListShowsOverdueAndDueItems() {
+        String text = run(ANA_WITH_REX
+                + "3\n1\nAna\n1\nPills\nmedication\n2026-11-10\n7\n\n"
+                + "1\nAna\n1\nBath\nother\n2026-11-13\n\n"
+                + "3\nAna\n0\n0\n");
+
+        assertTrue(text.contains("OVERDUE: Rex - Pills (MEDICATION), next due 2026-11-10, last given never"));
+        assertTrue(text.contains("DUE_TODAY: Rex - Bath (OTHER)"));
+        assertTrue(text.indexOf("OVERDUE: Rex") < text.indexOf("DUE_TODAY: Rex"));
+    }
+
+    @Test
+    void todayListWithNothingToDoSaysSo() {
+        String text = run(ANA_WITH_REX + "3\n3\nAna\n0\n0\n");
+
+        assertTrue(text.contains("Nothing to do today."));
+    }
+
+    @Test
+    void todayListForAnUnknownNamePrintsAMessageAndStaysInTheSubmenu() {
+        String text = run("3\n3\nNobody\n0\n0\n");
+
+        assertTrue(text.contains("No account named Nobody."));
+        assertTrue(text.contains("Goodbye."));
+    }
+
+    @Test
+    void markAsGivenWithABlankDateUsesTodayAndMovesTheItemToGivenToday() {
+        String text = run(ANA_WITH_REX
+                + "3\n1\nAna\n1\nPills\nmedication\n2026-11-10\n7\n\n"
+                + "4\nAna\n1\n1\n\n"
+                + "3\nAna\n0\n0\n");
+
+        assertTrue(text.contains("1) Pills (MEDICATION), OVERDUE"));
+        assertTrue(text.contains("Marked Pills as given on 2026-11-13."));
+        assertTrue(text.contains("GIVEN_TODAY: Rex - Pills (MEDICATION), next due 2026-11-20, last given 2026-11-13"));
+    }
+
+    @Test
+    void markAsGivenWithAnExplicitDate() {
+        String text = run(ANA_WITH_REX
+                + "3\n1\nAna\n1\nPills\nmedication\n2026-11-01\n7\n\n"
+                + "4\nAna\n1\n1\n2026-11-12\n0\n0\n");
+
+        assertTrue(text.contains("Marked Pills as given on 2026-11-12."));
+    }
+
+    @Test
+    void markAsGivenTwicePrintsTheMessageAndStaysInTheSubmenu() {
+        String text = run(ANA_WITH_REX
+                + "3\n1\nAna\n1\nShot\nvaccine\n2026-11-01\n\n"
+                + "4\nAna\n1\n1\n\n"
+                + "4\nAna\n1\n1\n\n"
+                + "2\nAna\n1\n0\n0\n");
+
+        assertTrue(text.contains("is a one-off and was already given on 2026-11-13"));
+        assertTrue(text.contains("Goodbye."));
+    }
+
+    @Test
+    void markAsGivenInTheFuturePrintsTheMessage() {
+        String text = run(ANA_WITH_REX
+                + "3\n1\nAna\n1\nPills\nmedication\n2026-11-01\n7\n\n"
+                + "4\nAna\n1\n1\n2026-11-14\n0\n0\n");
+
+        assertTrue(text.contains("is after today"));
+        assertFalse(text.contains("Marked"));
+    }
+
+    @Test
+    void markAsGivenForAPetWithoutPlansSaysSo() {
+        String text = run(ANA_WITH_REX + "3\n4\nAna\n1\n0\n0\n");
+
+        assertTrue(text.contains("No care plans yet."));
+        assertFalse(text.contains("Which plan?"));
     }
 
     /** Runs a script on a fresh PetCare, so one test can try several scripts. */

@@ -1,6 +1,7 @@
 package io.github.edymihai.petowner.console;
 
 import io.github.edymihai.petowner.AdminCannotOwnPetException;
+import io.github.edymihai.petowner.AlreadyGivenException;
 import io.github.edymihai.petowner.CannotRemoveLastOwnerException;
 import io.github.edymihai.petowner.DuplicateEmailException;
 import io.github.edymihai.petowner.EndOfInputException;
@@ -9,6 +10,7 @@ import io.github.edymihai.petowner.account.Account;
 import io.github.edymihai.petowner.account.Role;
 import io.github.edymihai.petowner.careplan.CarePlan;
 import io.github.edymihai.petowner.careplan.PlanKind;
+import io.github.edymihai.petowner.careplan.TodayItem;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.Species;
 
@@ -102,10 +104,14 @@ public class Menu {
             out.println();
             out.println("1) Add");
             out.println("2) List");
+            out.println("3) Today list");
+            out.println("4) Mark as given");
             out.println("0) Back");
-            switch (input.readInt("Choose: ", 0, 2)) {
+            switch (input.readInt("Choose: ", 0, 4)) {
                 case 1 -> addCarePlan();
                 case 2 -> listCarePlans();
+                case 3 -> todayList();
+                case 4 -> markPlanGiven();
                 default -> inMenu = false;
             }
         }
@@ -319,6 +325,54 @@ public class Menu {
             CarePlan plan = petCare.addCarePlan(pet.get().getId(), title, kind, start, interval, end);
             out.println("Added care plan " + plan.getId() + ".");
         } catch (NoSuchElementException | IllegalArgumentException e) {
+            out.println(e.getMessage());
+        }
+    }
+
+    private void todayList() {
+        try {
+            Optional<Account> owner = chooseAccountByName("Owner name: ");
+            if (owner.isEmpty()) {
+                return;
+            }
+            List<TodayItem> items = petCare.todayFor(owner.get().getId(), today);
+            if (items.isEmpty()) {
+                out.println("Nothing to do today.");
+            }
+            for (TodayItem i : items) {
+                out.println(i.status() + ": " + i.petName() + " - " + i.planTitle() + " (" + i.kind() + ")"
+                        + ", next due " + i.nextDue().map(LocalDate::toString).orElse("-")
+                        + ", last given " + (i.lastGiven() == null ? "never" : i.lastGiven()));
+            }
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            out.println(e.getMessage());
+        }
+    }
+
+    private void markPlanGiven() {
+        try {
+            Optional<Account> owner = chooseAccountByName("Owner name: ");
+            if (owner.isEmpty()) {
+                return;
+            }
+            Optional<Pet> pet = choosePetOf(owner.get());
+            if (pet.isEmpty()) {
+                return;
+            }
+            List<CarePlan> plans = petCare.plansOf(pet.get().getId());
+            if (plans.isEmpty()) {
+                out.println("No care plans yet.");
+                return;
+            }
+            for (int i = 0; i < plans.size(); i++) {
+                CarePlan p = plans.get(i);
+                out.println((i + 1) + ") " + p.getTitle() + " (" + p.getKind() + "), " + p.statusOn(today));
+            }
+            CarePlan plan = plans.get(input.readInt("Which plan? ", 1, plans.size()) - 1);
+            LocalDate givenOn = input.readOptionalDate("Date given (yyyy-MM-dd, blank for today): ").orElse(today);
+            petCare.markGiven(plan.getId(), givenOn, today);
+            out.println("Marked " + plan.getTitle() + " as given on " + givenOn + ".");
+        } catch (AlreadyGivenException | NoSuchElementException | IllegalArgumentException e) {
             out.println(e.getMessage());
         }
     }
