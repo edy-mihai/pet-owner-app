@@ -1,5 +1,6 @@
 package io.github.edymihai.petowner.careplan;
 
+import io.github.edymihai.petowner.AlreadyGivenException;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -183,5 +184,88 @@ class CarePlanTest {
         LocalDate last = START.plusDays(10);
         assertEquals(DueStatus.OVERDUE, recurring(7, null, last).statusOn(last.plusDays(8)));
         assertEquals(DueStatus.OVERDUE, oneOff(null).statusOn(START.plusDays(1)));
+    }
+
+    // ---- markGiven
+
+    @Test
+    void markGivenInTheFutureIsRejectedAndChangesNothing() {
+        CarePlan plan = recurring(7, null, null);
+        LocalDate today = START.plusDays(3);
+
+        assertThrows(IllegalArgumentException.class, () -> plan.markGiven(today.plusDays(1), today));
+        assertEquals(null, plan.getLastGivenDate());
+    }
+
+    @Test
+    void markGivenTwiceOnTheSameDayIsRejected() {
+        CarePlan plan = recurring(7, null, null);
+        LocalDate today = START.plusDays(3);
+        plan.markGiven(today, today);
+
+        assertThrows(AlreadyGivenException.class, () -> plan.markGiven(today, today));
+        assertEquals(today, plan.getLastGivenDate());
+    }
+
+    @Test
+    void markGivenOnAnEarlierDateIsRejected() {
+        CarePlan plan = recurring(7, null, START.plusDays(5));
+
+        assertThrows(AlreadyGivenException.class, () -> plan.markGiven(START.plusDays(4), START.plusDays(6)));
+        assertEquals(START.plusDays(5), plan.getLastGivenDate());
+    }
+
+    @Test
+    void aOneOffCanBeGivenOnlyOnce() {
+        CarePlan plan = oneOff(null);
+        LocalDate today = START.plusDays(2);
+        plan.markGiven(today, today);
+
+        AlreadyGivenException e = assertThrows(AlreadyGivenException.class,
+                () -> plan.markGiven(today.plusDays(1), today.plusDays(1)));
+        assertTrue(e.getMessage().contains("Rabies shot"));
+        assertEquals(DueStatus.DONE, plan.statusOn(today.plusDays(1)));
+    }
+
+    @Test
+    void recurringPlanMovesItsNextDueAfterEachDose() {
+        CarePlan plan = recurring(7, null, null);
+        LocalDate first = START.plusDays(1);
+        plan.markGiven(first, first);
+        assertEquals(Optional.of(first.plusDays(7)), plan.nextDue());
+
+        LocalDate second = first.plusDays(8);
+        plan.markGiven(second, second);
+        assertEquals(second, plan.getLastGivenDate());
+        assertEquals(Optional.of(second.plusDays(7)), plan.nextDue());
+    }
+
+    @Test
+    void anOverduePlanCanBeGivenAnEarlierDayWithoutCatchUp() {
+        CarePlan plan = recurring(7, null, null);
+        LocalDate given = START.plusDays(20);
+        plan.markGiven(given, START.plusDays(30));
+
+        assertEquals(Optional.of(given.plusDays(7)), plan.nextDue());
+    }
+
+    @Test
+    void statusAfterMarkingIsGivenTodayThenNotDueThenDueThenOverdue() {
+        CarePlan plan = recurring(7, null, null);
+        LocalDate today = START.plusDays(2);
+        plan.markGiven(today, today);
+
+        assertEquals(DueStatus.GIVEN_TODAY, plan.statusOn(today));
+        assertEquals(DueStatus.NOT_DUE, plan.statusOn(today.plusDays(1)));
+        assertEquals(DueStatus.DUE_TODAY, plan.statusOn(today.plusDays(7)));
+        assertEquals(DueStatus.OVERDUE, plan.statusOn(today.plusDays(8)));
+    }
+
+    @Test
+    void anyStatusCanBeMarkedGiven() {
+        CarePlan notStarted = recurring(7, null, null);
+        LocalDate today = START.minusDays(1);
+
+        assertDoesNotThrow(() -> notStarted.markGiven(today, today));
     }
 }

@@ -5,12 +5,16 @@ import io.github.edymihai.petowner.account.AccountDirectory;
 import io.github.edymihai.petowner.account.Role;
 import io.github.edymihai.petowner.careplan.CarePlan;
 import io.github.edymihai.petowner.careplan.CarePlanBook;
+import io.github.edymihai.petowner.careplan.DueStatus;
 import io.github.edymihai.petowner.careplan.PlanKind;
+import io.github.edymihai.petowner.careplan.TodayItem;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.PetRegister;
 import io.github.edymihai.petowner.pet.Species;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -133,6 +137,44 @@ public class PetCare {
     public List<CarePlan> plansOf(long petId) {
         findPet(petId);
         return plans.findByPetId(petId);
+    }
+
+    private static final List<DueStatus> TODAY_STATUSES =
+            List.of(DueStatus.OVERDUE, DueStatus.DUE_TODAY, DueStatus.GIVEN_TODAY);
+
+    /**
+     * The plans of all the account's pets that are overdue, due today or given today, sorted by status
+     * (in that order), then next due date, then pet name. Throws NoSuchElementException for an unknown account.
+     */
+    public List<TodayItem> todayFor(long accountId, LocalDate today) {
+        if (accounts.findById(accountId).isEmpty()) {
+            throw new NoSuchElementException("No account with id " + accountId);
+        }
+        List<TodayItem> items = new ArrayList<>();
+        for (Pet pet : pets.findByOwner(accountId)) {
+            for (CarePlan plan : plans.findByPetId(pet.getId())) {
+                DueStatus status = plan.statusOn(today);
+                if (TODAY_STATUSES.contains(status)) {
+                    items.add(new TodayItem(pet.getName(), plan.getId(), plan.getTitle(), plan.getKind(),
+                            status, plan.nextDue(), plan.getLastGivenDate()));
+                }
+            }
+        }
+        items.sort(Comparator.comparingInt((TodayItem i) -> TODAY_STATUSES.indexOf(i.status()))
+                .thenComparing(i -> i.nextDue().orElse(LocalDate.MAX))
+                .thenComparing(TodayItem::petName));
+        return items;
+    }
+
+    /**
+     * Marks a care plan as given on {@code givenOn} and saves it. Throws NoSuchElementException for an
+     * unknown plan; the rules (future date, already given) are checked by the plan itself.
+     */
+    public void markGiven(long planId, LocalDate givenOn, LocalDate today) {
+        CarePlan plan = plans.findById(planId)
+                .orElseThrow(() -> new NoSuchElementException("No care plan with id " + planId));
+        plan.markGiven(givenOn, today);
+        plans.save(plan);
     }
 
     public List<Pet> petsOf(long accountId) {

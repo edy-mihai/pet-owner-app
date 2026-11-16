@@ -1,5 +1,7 @@
 package io.github.edymihai.petowner.careplan;
 
+import io.github.edymihai.petowner.AlreadyGivenException;
+
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -13,7 +15,7 @@ public class CarePlan {
     /** Days between doses; null means a one-off plan. */
     private final Integer intervalDays;
     private final LocalDate endDate;
-    private final LocalDate lastGivenDate;
+    private LocalDate lastGivenDate;
 
     /**
      * Creates a care plan. The id stays 0 until the store assigns one.
@@ -81,6 +83,27 @@ public class CarePlan {
             return DueStatus.NOT_DUE;
         }
         return due.isBefore(today) ? DueStatus.OVERDUE : DueStatus.DUE_TODAY;
+    }
+
+    /**
+     * Records that the plan was given on {@code givenOn}, whatever its status. Missed days are not caught up.
+     * Throws IllegalArgumentException for a date after today, AlreadyGivenException for a one-off that
+     * was already given or a date not after the last given date. The caller saves the plan afterwards.
+     */
+    public void markGiven(LocalDate givenOn, LocalDate today) {
+        if (givenOn == null) {
+            throw new IllegalArgumentException("Given date must not be null");
+        }
+        if (givenOn.isAfter(today)) {
+            throw new IllegalArgumentException("Given date " + givenOn + " is after today (" + today + ")");
+        }
+        if (intervalDays == null && lastGivenDate != null) {
+            throw AlreadyGivenException.oneOff(title, lastGivenDate);
+        }
+        if (lastGivenDate != null && !givenOn.isAfter(lastGivenDate)) {
+            throw AlreadyGivenException.notAfterLast(title, lastGivenDate, givenOn);
+        }
+        lastGivenDate = givenOn;
     }
 
     public long getId() {

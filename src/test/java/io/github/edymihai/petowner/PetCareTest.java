@@ -3,6 +3,8 @@ package io.github.edymihai.petowner;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import io.github.edymihai.petowner.careplan.PlanKind;
 import io.github.edymihai.petowner.careplan.CarePlan;
+import io.github.edymihai.petowner.careplan.DueStatus;
+import io.github.edymihai.petowner.careplan.TodayItem;
 import io.github.edymihai.petowner.account.Account;
 import io.github.edymihai.petowner.account.InMemoryAccountDirectory;
 import io.github.edymihai.petowner.account.Role;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -373,5 +376,119 @@ class PetCareTest {
 
         assertEquals(1, petCare.plansOf(shared.getId()).size());
         assertEquals(1, petCare.listPets().size());
+    }
+
+    // ---- today list and mark as given
+
+    @Test
+    void todayForKeepsOnlyOverdueDueTodayAndGivenToday() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+        petCare.addCarePlan(rex.getId(), "Overdue", PlanKind.MEDICATION, TODAY.minusDays(3), 7, null);
+        petCare.addCarePlan(rex.getId(), "DueToday", PlanKind.MEDICATION, TODAY, 7, null);
+        CarePlan given = petCare.addCarePlan(rex.getId(), "Given", PlanKind.MEDICATION, TODAY.minusDays(5), 7, null);
+        petCare.markGiven(given.getId(), TODAY, TODAY);
+        petCare.addCarePlan(rex.getId(), "Future", PlanKind.MEDICATION, TODAY.plusDays(2), 7, null);
+        petCare.addCarePlan(rex.getId(), "Ended", PlanKind.MEDICATION, TODAY.minusDays(20), 7, TODAY.minusDays(10));
+        CarePlan done = petCare.addCarePlan(rex.getId(), "Done", PlanKind.VACCINE, TODAY.minusDays(9), null, null);
+        petCare.markGiven(done.getId(), TODAY.minusDays(1), TODAY);
+
+        List<TodayItem> items = petCare.todayFor(ana.getId(), TODAY);
+
+        assertEquals(List.of("Overdue", "DueToday", "Given"),
+                items.stream().map(TodayItem::planTitle).toList());
+    }
+
+    @Test
+    void todayForSortsByStatusThenNextDueThenPetName() {
+        Account ana = owner("Ana");
+        Pet zed = pet(ana, "Zed");
+        Pet abe = pet(ana, "Abe");
+        CarePlan given = petCare.addCarePlan(abe.getId(), "G", PlanKind.OTHER, TODAY.minusDays(5), 7, null);
+        petCare.markGiven(given.getId(), TODAY, TODAY);
+        petCare.addCarePlan(abe.getId(), "D-abe", PlanKind.OTHER, TODAY, 7, null);
+        petCare.addCarePlan(zed.getId(), "D-zed", PlanKind.OTHER, TODAY, 7, null);
+        petCare.addCarePlan(zed.getId(), "O-late", PlanKind.OTHER, TODAY.minusDays(1), 7, null);
+        petCare.addCarePlan(abe.getId(), "O-early", PlanKind.OTHER, TODAY.minusDays(4), 7, null);
+
+        List<String> titles = petCare.todayFor(ana.getId(), TODAY).stream().map(TodayItem::planTitle).toList();
+
+        assertEquals(List.of("O-early", "O-late", "D-abe", "D-zed", "G"), titles);
+    }
+
+    @Test
+    void todayForFillsInTheItemFields() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+        CarePlan plan = petCare.addCarePlan(rex.getId(), "Pills", PlanKind.MEDICATION, TODAY.minusDays(2), 7, null);
+
+        TodayItem item = petCare.todayFor(ana.getId(), TODAY).get(0);
+
+        assertEquals("Rex", item.petName());
+        assertEquals(plan.getId(), item.planId());
+        assertEquals(DueStatus.OVERDUE, item.status());
+        assertEquals(Optional.of(TODAY.minusDays(2)), item.nextDue());
+        assertNull(item.lastGiven());
+    }
+
+    @Test
+    void todayForListsOnlyThePetsOfThatAccount() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        petCare.addCarePlan(pet(ana, "Rex").getId(), "Mine", PlanKind.OTHER, TODAY, 7, null);
+        petCare.addCarePlan(pet(bob, "Tom").getId(), "Theirs", PlanKind.OTHER, TODAY, 7, null);
+
+        assertEquals(1, petCare.todayFor(ana.getId(), TODAY).size());
+        assertEquals("Theirs", petCare.todayFor(bob.getId(), TODAY).get(0).planTitle());
+    }
+
+    @Test
+    void aCoOwnerSeesTheSameList() {
+        Account ana = owner("Ana");
+        Account bob = owner("Bob");
+        Pet rex = pet(ana, "Rex");
+        petCare.addOwner(rex.getId(), bob.getId(), TODAY);
+        petCare.addCarePlan(rex.getId(), "Pills", PlanKind.OTHER, TODAY, 7, null);
+
+        assertEquals(petCare.todayFor(ana.getId(), TODAY), petCare.todayFor(bob.getId(), TODAY));
+        assertEquals(1, petCare.todayFor(bob.getId(), TODAY).size());
+    }
+
+    @Test
+    void todayForAnAccountWithoutPetsIsEmpty() {
+        assertTrue(petCare.todayFor(owner("Ana").getId(), TODAY).isEmpty());
+    }
+
+    @Test
+    void todayForAnUnknownAccountFails() {
+        assertThrows(NoSuchElementException.class, () -> petCare.todayFor(99, TODAY));
+    }
+
+    @Test
+    void markGivenSavesTheNewLastGivenDate() {
+        Account ana = owner("Ana");
+        Pet rex = pet(ana, "Rex");
+        CarePlan plan = petCare.addCarePlan(rex.getId(), "Pills", PlanKind.OTHER, TODAY.minusDays(2), 7, null);
+
+        petCare.markGiven(plan.getId(), TODAY, TODAY);
+
+        assertEquals(TODAY, petCare.plansOf(rex.getId()).get(0).getLastGivenDate());
+        assertTrue(petCare.todayFor(ana.getId(), TODAY).stream()
+                .allMatch(i -> i.status() == DueStatus.GIVEN_TODAY));
+    }
+
+    @Test
+    void markGivenForAnUnknownPlanFails() {
+        assertThrows(NoSuchElementException.class, () -> petCare.markGiven(99, TODAY, TODAY));
+    }
+
+    @Test
+    void markGivenPassesOnTheRulesOfThePlan() {
+        Account ana = owner("Ana");
+        CarePlan plan = petCare.addCarePlan(pet(ana, "Rex").getId(), "Shot", PlanKind.VACCINE, TODAY, null, null);
+
+        assertThrows(IllegalArgumentException.class, () -> petCare.markGiven(plan.getId(), TODAY.plusDays(1), TODAY));
+        petCare.markGiven(plan.getId(), TODAY, TODAY);
+        assertThrows(AlreadyGivenException.class, () -> petCare.markGiven(plan.getId(), TODAY, TODAY));
     }
 }
