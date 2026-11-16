@@ -39,18 +39,15 @@ public class Menu {
         try {
             boolean running = true;
             while (running) {
-                printMenu();
-                switch (input.readInt("Choose: ", 0, 10)) {
-                    case 1 -> addAccount();
-                    case 2 -> listAccounts();
-                    case 3 -> addPet();
-                    case 4 -> listPets();
-                    case 5 -> deleteAccount();
-                    case 6 -> deletePet();
-                    case 7 -> addCoOwner();
-                    case 8 -> removeCoOwner();
-                    case 9 -> addCarePlan();
-                    case 10 -> listCarePlans();
+                out.println();
+                out.println("1) Accounts");
+                out.println("2) Pets");
+                out.println("3) Care plans");
+                out.println("0) Exit");
+                switch (input.readInt("Choose: ", 0, 3)) {
+                    case 1 -> accountsMenu();
+                    case 2 -> petsMenu();
+                    case 3 -> carePlansMenu();
                     default -> running = false;
                 }
             }
@@ -60,19 +57,58 @@ public class Menu {
         out.println("Goodbye.");
     }
 
-    private void printMenu() {
-        out.println();
-        out.println("1) Add account");
-        out.println("2) List accounts");
-        out.println("3) Add pet");
-        out.println("4) List pets");
-        out.println("5) Delete account");
-        out.println("6) Delete pet");
-        out.println("7) Add co-owner");
-        out.println("8) Remove co-owner");
-        out.println("9) Add care plan");
-        out.println("10) List care plans");
-        out.println("0) Exit");
+    /** Loops until the user picks 0 (back). */
+    private void accountsMenu() {
+        boolean inMenu = true;
+        while (inMenu) {
+            out.println();
+            out.println("1) Add");
+            out.println("2) List");
+            out.println("3) Delete");
+            out.println("0) Back");
+            switch (input.readInt("Choose: ", 0, 3)) {
+                case 1 -> addAccount();
+                case 2 -> listAccounts();
+                case 3 -> deleteAccount();
+                default -> inMenu = false;
+            }
+        }
+    }
+
+    private void petsMenu() {
+        boolean inMenu = true;
+        while (inMenu) {
+            out.println();
+            out.println("1) Add");
+            out.println("2) List");
+            out.println("3) Delete");
+            out.println("4) Add co-owner");
+            out.println("5) Remove co-owner");
+            out.println("0) Back");
+            switch (input.readInt("Choose: ", 0, 5)) {
+                case 1 -> addPet();
+                case 2 -> listPets();
+                case 3 -> deletePet();
+                case 4 -> addCoOwner();
+                case 5 -> removeCoOwner();
+                default -> inMenu = false;
+            }
+        }
+    }
+
+    private void carePlansMenu() {
+        boolean inMenu = true;
+        while (inMenu) {
+            out.println();
+            out.println("1) Add");
+            out.println("2) List");
+            out.println("0) Back");
+            switch (input.readInt("Choose: ", 0, 2)) {
+                case 1 -> addCarePlan();
+                case 2 -> listCarePlans();
+                default -> inMenu = false;
+            }
+        }
     }
 
     private void addAccount() {
@@ -276,7 +312,7 @@ public class Menu {
             String title = input.readNonBlank("Title: ");
             PlanKind kind = input.readChoice("Kind", PlanKind.class);
             LocalDate start = input.readDate("Start date (yyyy-MM-dd): ");
-            Integer interval = input.readOptionalInt("Interval in days (blank for one-off): ").orElse(null);
+            Integer interval = input.readOptionalInt("Repeat every N days (blank for one-off): ").orElse(null);
             LocalDate end = interval == null
                     ? null
                     : input.readOptionalDate("End date (yyyy-MM-dd, blank for none): ").orElse(null);
@@ -304,7 +340,7 @@ public class Menu {
             for (CarePlan p : plans) {
                 String schedule = p.getIntervalDays() == null
                         ? "one-off on " + p.getStartDate()
-                        : "every " + p.getIntervalDays() + " days from " + p.getStartDate()
+                        : "repeats every " + p.getIntervalDays() + " days from " + p.getStartDate()
                                 + (p.getEndDate() == null ? "" : " until " + p.getEndDate());
                 out.println(p.getTitle() + " (" + p.getKind() + "), " + schedule
                         + ", last given " + (p.getLastGivenDate() == null ? "never" : p.getLastGivenDate())
