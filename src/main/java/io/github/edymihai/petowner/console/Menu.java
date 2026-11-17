@@ -35,13 +35,15 @@ public class Menu {
     private final Path exportDir;
     private final PetHistoryReport report = new PetHistoryReport();
     private final HistoryFile historyFile = new HistoryFile();
+    private final Style style;
 
-    public Menu(Input input, PetCare petCare, PrintStream out, LocalDate today, Path exportDir) {
+    public Menu(Input input, PetCare petCare, PrintStream out, LocalDate today, Path exportDir, Style style) {
         this.input = input;
         this.petCare = petCare;
         this.out = out;
         this.today = today;
         this.exportDir = exportDir;
+        this.style = style;
     }
 
     /** Runs until the user picks 0 or the input ends. */
@@ -49,7 +51,7 @@ public class Menu {
         try {
             boolean running = true;
             while (running) {
-                out.println();
+                printTitle("MAIN MENU");
                 out.println("1) Accounts");
                 out.println("2) Pets");
                 out.println("3) Care plans");
@@ -67,11 +69,17 @@ public class Menu {
         out.println("Goodbye.");
     }
 
+    /** A blank line, then the title in capitals. */
+    private void printTitle(String title) {
+        out.println();
+        out.println(title);
+    }
+
     /** Loops until the user picks 0 (back). */
     private void accountsMenu() {
         boolean inMenu = true;
         while (inMenu) {
-            out.println();
+            printTitle("ACCOUNTS");
             out.println("1) Add");
             out.println("2) List");
             out.println("3) Delete");
@@ -88,7 +96,7 @@ public class Menu {
     private void petsMenu() {
         boolean inMenu = true;
         while (inMenu) {
-            out.println();
+            printTitle("PETS");
             out.println("1) Add");
             out.println("2) List");
             out.println("3) Delete");
@@ -113,7 +121,7 @@ public class Menu {
     private void carePlansMenu() {
         boolean inMenu = true;
         while (inMenu) {
-            out.println();
+            printTitle("CARE PLANS");
             out.println("1) Add");
             out.println("2) List");
             out.println("3) Today list");
@@ -135,9 +143,9 @@ public class Menu {
         Role role = input.readChoice("Role", Role.class);
         try {
             Account account = petCare.addAccount(name, email, role);
-            out.println("Added account " + account.getId() + ".");
+            out.println(style.success("Added account " + account.getId() + "."));
         } catch (DuplicateEmailException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -164,9 +172,9 @@ public class Menu {
             LocalDate birthDate = input.readOptionalDate("Birth date (yyyy-MM-dd, blank for none): ").orElse(null);
             String notes = input.readOptionalText("Notes (blank for none): ").orElse(null);
             Pet pet = petCare.addPet(ownerId, name, species, birthDate, notes, today);
-            out.println("Added pet " + pet.getId() + ".");
+            out.println(style.success("Added pet " + pet.getId() + "."));
         } catch (AdminCannotOwnPetException | IllegalArgumentException | NoSuchElementException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -178,7 +186,7 @@ public class Menu {
         String name = input.readNonBlank(prompt);
         List<Account> matches = petCare.findAccountsByName(name);
         if (matches.isEmpty()) {
-            out.println("No account named " + name + ".");
+            out.println(style.error("No account named " + name + "."));
             return Optional.empty();
         }
         if (matches.size() == 1) {
@@ -210,7 +218,7 @@ public class Menu {
     private Optional<Pet> choosePetOf(Account account) {
         List<Pet> pets = petCare.petsOf(account.getId());
         if (pets.isEmpty()) {
-            out.println(account.getName() + " has no pets.");
+            out.println(style.error(account.getName() + " has no pets."));
             return Optional.empty();
         }
         for (int i = 0; i < pets.size(); i++) {
@@ -242,9 +250,9 @@ public class Menu {
                 return;
             }
             petCare.removeAccount(a.getId());
-            out.println("Deleted account " + a.getName() + " and " + toDelete.size() + " pet(s).");
+            out.println(style.success("Deleted account " + a.getName() + " and " + toDelete.size() + " pet(s)."));
         } catch (NoSuchElementException | CannotRemoveLastOwnerException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -264,9 +272,9 @@ public class Menu {
                 return;
             }
             petCare.deletePet(p.getId());
-            out.println("Deleted pet " + p.getName() + ".");
+            out.println(style.success("Deleted pet " + p.getName() + "."));
         } catch (NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -287,12 +295,12 @@ public class Menu {
             Pet p = pet.get();
             Account c = coOwner.get();
             if (petCare.addOwner(p.getId(), c.getId(), today)) {
-                out.println("Added " + c.getName() + " as co-owner of " + p.getName() + ".");
+                out.println(style.success("Added " + c.getName() + " as co-owner of " + p.getName() + "."));
             } else {
-                out.println(c.getName() + " already owns " + p.getName() + ".");
+                out.println(style.error(c.getName() + " already owns " + p.getName() + "."));
             }
         } catch (AdminCannotOwnPetException | NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -308,12 +316,12 @@ public class Menu {
             }
             Pet p = pet.get();
             if (petCare.removeOwner(p.getId(), account.get().getId())) {
-                out.println("Removed " + account.get().getName() + " from " + p.getName() + ".");
+                out.println(style.success("Removed " + account.get().getName() + " from " + p.getName() + "."));
             } else {
-                out.println(account.get().getName() + " does not own " + p.getName() + ".");
+                out.println(style.error(account.get().getName() + " does not own " + p.getName() + "."));
             }
         } catch (CannotRemoveLastOwnerException | NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -330,11 +338,11 @@ public class Menu {
             Pet p = pet.get();
             List<String> lines = report.format(petCare.historyOf(p.getId(), today));
             Path saved = historyFile.write(exportDir, HistoryFile.fileName(p.getName(), p.getId(), today), lines);
-            out.println("Saved to " + saved);
+            out.println(style.success("Saved to " + saved));
         } catch (IOException e) {
-            out.println("Could not write the file: " + e.getMessage());
+            out.println(style.error("Could not write the file: " + e.getMessage()));
         } catch (NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -352,7 +360,7 @@ public class Menu {
             out.println();
             historyFile.read(file).forEach(out::println);
         } catch (IOException e) {
-            out.println("Could not read the file: " + e.getMessage());
+            out.println(style.error("Could not read the file: " + e.getMessage()));
         }
     }
 
@@ -374,9 +382,9 @@ public class Menu {
                     ? null
                     : input.readOptionalDate("End date (yyyy-MM-dd, blank for none): ").orElse(null);
             CarePlan plan = petCare.addCarePlan(pet.get().getId(), title, kind, start, interval, end);
-            out.println("Added care plan " + plan.getId() + ".");
+            out.println(style.success("Added care plan " + plan.getId() + "."));
         } catch (NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -396,7 +404,7 @@ public class Menu {
                         + ", last given " + (i.lastGiven() == null ? "never" : i.lastGiven()));
             }
         } catch (NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -412,7 +420,7 @@ public class Menu {
             }
             List<CarePlan> plans = petCare.plansOf(pet.get().getId());
             if (plans.isEmpty()) {
-                out.println("No care plans yet.");
+                out.println(style.error("No care plans yet."));
                 return;
             }
             for (int i = 0; i < plans.size(); i++) {
@@ -422,9 +430,9 @@ public class Menu {
             CarePlan plan = plans.get(input.readInt("Which plan? ", 1, plans.size()) - 1);
             LocalDate givenOn = input.readOptionalDate("Date given (yyyy-MM-dd, blank for today): ").orElse(today);
             petCare.markGiven(plan.getId(), givenOn, today);
-            out.println("Marked " + plan.getTitle() + " as given on " + givenOn + ".");
+            out.println(style.success("Marked " + plan.getTitle() + " as given on " + givenOn + "."));
         } catch (AlreadyGivenException | NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 
@@ -453,7 +461,7 @@ public class Menu {
                         + ", " + p.statusOn(today));
             }
         } catch (NoSuchElementException | IllegalArgumentException e) {
-            out.println(e.getMessage());
+            out.println(style.error(e.getMessage()));
         }
     }
 }

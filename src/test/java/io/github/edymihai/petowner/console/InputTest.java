@@ -21,7 +21,17 @@ class InputTest {
 
     private Input inputWith(String script) {
         Scanner scanner = new Scanner(new ByteArrayInputStream(script.getBytes()));
-        return new Input(scanner, new PrintStream(output));
+        return new Input(scanner, new PrintStream(output), new Style(false));
+    }
+
+    @Test
+    void anErrorIsRedWhenColorsAreOn() {
+        Input input = new Input(new Scanner(new ByteArrayInputStream("maybe\ny\n".getBytes())),
+                new PrintStream(output), new Style(true));
+
+        input.readYesNo("? ");
+
+        assertTrue(output.toString().contains("\u001B[31mPlease answer y or n.\u001B[0m"));
     }
 
     @Test

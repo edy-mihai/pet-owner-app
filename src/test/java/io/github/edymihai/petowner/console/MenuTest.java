@@ -29,6 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MenuTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 13);
+    private static final Style OFF = new Style(false);
+    private static final String RED = "\u001B[31m";
+    private static final String GREEN = "\u001B[32m";
+    private static final String RESET = "\u001B[0m";
 
     @TempDir
     Path exportDir;
@@ -39,8 +43,16 @@ class MenuTest {
 
     private String run(String script) {
         PrintStream out = new PrintStream(output);
-        Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out);
-        new Menu(input, petCare, out, TODAY, exportDir).run();
+        Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out, OFF);
+        new Menu(input, petCare, out, TODAY, exportDir, OFF).run();
+        return output.toString();
+    }
+
+    private String runInColor(String script) {
+        PrintStream out = new PrintStream(output);
+        Style on = new Style(true);
+        Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out, on);
+        new Menu(input, petCare, out, TODAY, exportDir, on).run();
         return output.toString();
     }
 
@@ -225,6 +237,72 @@ class MenuTest {
         assertTrue(text.contains("2) Pets"));
         assertTrue(text.contains("3) Care plans"));
         assertTrue(text.contains("0) Exit"));
+    }
+
+    @Test
+    void theMainMenuStartsWithABlankLineAndItsTitle() {
+        String nl = System.lineSeparator();
+
+        assertTrue(run("0\n").startsWith(nl + "MAIN MENU" + nl + "1) Accounts"));
+    }
+
+    @Test
+    void eachSubmenuShowsItsTitleAfterABlankLine() {
+        String nl = System.lineSeparator();
+        String text = run("1\n0\n2\n0\n3\n0\n0\n");
+
+        // The blank line is a println() right after the "Choose: " prompt. In a real terminal the
+        // typed Enter has already ended the prompt line, so it shows as an empty line; the test
+        // input is not echoed, so here it only ends the prompt line.
+        assertTrue(text.contains("Choose: " + nl + "ACCOUNTS" + nl + "1) Add"));
+        assertTrue(text.contains("Choose: " + nl + "PETS" + nl + "1) Add"));
+        assertTrue(text.contains("Choose: " + nl + "CARE PLANS" + nl + "1) Add"));
+    }
+
+    @Test
+    void theTitleIsPrintedEveryTimeTheMenuIsShown() {
+        // List accounts twice, then back, then exit: ACCOUNTS 3 times, MAIN MENU twice
+        String text = run("1\n2\n2\n0\n0\n");
+
+        assertEquals(3, text.split("ACCOUNTS", -1).length - 1);
+        assertEquals(2, text.split("MAIN MENU", -1).length - 1);
+    }
+
+    @Test
+    void anErrorLineIsRedWhenColorsAreOn() {
+        String text = runInColor("2\n1\nNobody\n0\n0\n");
+
+        assertTrue(text.contains(RED + "No account named Nobody." + RESET));
+    }
+
+    @Test
+    void aRejectedInputLineFromInputIsRedWhenColorsAreOn() {
+        String text = runInColor("abc\n0\n");
+
+        assertTrue(text.contains(RED + "That is not a number." + RESET));
+    }
+
+    @Test
+    void aSuccessLineIsGreenWhenColorsAreOn() {
+        String text = runInColor("1\n1\nAna\nana@example.com\nowner\n0\n0\n");
+
+        assertTrue(text.contains(GREEN + "Added account 1." + RESET));
+    }
+
+    @Test
+    void plainLinesHaveNoEscapeCodesWhenColorsAreOn() {
+        String text = runInColor("2\n2\n0\n0\n");
+
+        assertTrue(text.contains("No pets yet."));
+        assertTrue(text.contains("Goodbye."));
+        assertFalse(text.contains("\u001B["));
+    }
+
+    @Test
+    void noEscapeCodesAreEverPrintedWhenColorsAreOff() {
+        String text = run("1\n1\nAna\nana@example.com\nowner\n0\n2\n1\nNobody\n0\nabc\n0\n");
+
+        assertFalse(text.contains("\u001B["));
     }
 
     @Test
@@ -468,8 +546,8 @@ class MenuTest {
         Path blocker = Files.writeString(exportDir.resolve("blocker"), "x");
         PrintStream out = new PrintStream(output);
         Input input = new Input(new Scanner(new ByteArrayInputStream(
-                (ANA_WITH_REX + "2\n6\nAna\n1\n0\n0\n").getBytes())), out);
-        new Menu(input, petCare, out, TODAY, blocker).run();
+                (ANA_WITH_REX + "2\n6\nAna\n1\n0\n0\n").getBytes())), out, OFF);
+        new Menu(input, petCare, out, TODAY, blocker, OFF).run();
 
         String text = output.toString();
         assertTrue(text.contains("Could not write the file:"));
@@ -483,10 +561,10 @@ class MenuTest {
         MenuRun(String script, Path exportDir) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             PrintStream out = new PrintStream(bytes);
-            Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out);
+            Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out, OFF);
             PetCare care = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
                     new InMemoryCarePlanBook());
-            new Menu(input, care, out, TODAY, exportDir).run();
+            new Menu(input, care, out, TODAY, exportDir, OFF).run();
             text = bytes.toString();
         }
 

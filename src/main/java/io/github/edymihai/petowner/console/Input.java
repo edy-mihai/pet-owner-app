@@ -13,10 +13,12 @@ public class Input {
 
     private final Scanner in;
     private final PrintStream out;
+    private final Style style;
 
-    public Input(Scanner in, PrintStream out) {
+    public Input(Scanner in, PrintStream out, Style style) {
         this.in = in;
         this.out = out;
+        this.style = style;
     }
 
     public String readNonBlank(String prompt) {
@@ -25,7 +27,7 @@ public class Input {
             if (!line.isEmpty()) {
                 return line;
             }
-            out.println("Please type something.");
+            out.println(style.error("Please type something."));
         }
     }
 
@@ -37,9 +39,9 @@ public class Input {
                 if (value >= min && value <= max) {
                     return value;
                 }
-                out.println("Please type a number from " + min + " to " + max + ".");
+                out.println(style.error("Please type a number from " + min + " to " + max + "."));
             } catch (NumberFormatException e) {
-                out.println("That is not a number.");
+                out.println(style.error("That is not a number."));
             }
         }
     }
@@ -50,7 +52,7 @@ public class Input {
             if (line.contains("@")) {
                 return line;
             }
-            out.println("An email must contain @.");
+            out.println(style.error("An email must contain @."));
         }
     }
 
@@ -60,7 +62,7 @@ public class Input {
             try {
                 return LocalDate.parse(line);
             } catch (DateTimeParseException e) {
-                out.println("Please type a date as yyyy-MM-dd.");
+                out.println(style.error("Please type a date as yyyy-MM-dd."));
             }
         }
     }
@@ -75,7 +77,7 @@ public class Input {
             try {
                 return Optional.of(LocalDate.parse(line));
             } catch (DateTimeParseException e) {
-                out.println("Please type a date as yyyy-MM-dd, or leave blank.");
+                out.println(style.error("Please type a date as yyyy-MM-dd, or leave blank."));
             }
         }
     }
@@ -90,7 +92,7 @@ public class Input {
             try {
                 return Optional.of(Integer.parseInt(line));
             } catch (NumberFormatException e) {
-                out.println("Please type a whole number, or leave blank.");
+                out.println(style.error("Please type a whole number, or leave blank."));
             }
         }
     }
@@ -111,7 +113,7 @@ public class Input {
             if (line.isEmpty() || line.equals("n") || line.equals("no")) {
                 return false;
             }
-            out.println("Please answer y or n.");
+            out.println(style.error("Please answer y or n."));
         }
     }
 
@@ -129,7 +131,7 @@ public class Input {
                     return values[i];
                 }
             }
-            out.println("Not a valid choice.");
+            out.println(style.error("Not a valid choice."));
         }
     }
 
