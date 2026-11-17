@@ -11,6 +11,7 @@ import io.github.edymihai.petowner.careplan.TodayItem;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.PetRegister;
 import io.github.edymihai.petowner.pet.Species;
+import io.github.edymihai.petowner.report.PetHistory;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -175,6 +176,19 @@ public class PetCare {
                 .orElseThrow(() -> new NoSuchElementException("No care plan with id " + planId));
         plan.markGiven(givenOn, today);
         plans.save(plan);
+    }
+
+    /**
+     * What the history export needs: the pet, its owners' names (sorted, no e-mails) and its plans.
+     * Throws NoSuchElementException for an unknown pet.
+     */
+    public PetHistory historyOf(long petId, LocalDate today) {
+        Pet pet = findPet(petId);
+        List<String> ownerNames = ownersOf(petId).stream()
+                .map(Account::getName)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+        return new PetHistory(pet, ownerNames, plans.findByPetId(petId), today);
     }
 
     public List<Pet> petsOf(long accountId) {
