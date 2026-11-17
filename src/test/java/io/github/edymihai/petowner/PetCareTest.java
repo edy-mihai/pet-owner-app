@@ -12,6 +12,7 @@ import io.github.edymihai.petowner.careplan.InMemoryCarePlanBook;
 import io.github.edymihai.petowner.pet.InMemoryPetRegister;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.Species;
+import io.github.edymihai.petowner.report.PetHistory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -490,5 +491,33 @@ class PetCareTest {
         assertThrows(IllegalArgumentException.class, () -> petCare.markGiven(plan.getId(), TODAY.plusDays(1), TODAY));
         petCare.markGiven(plan.getId(), TODAY, TODAY);
         assertThrows(AlreadyGivenException.class, () -> petCare.markGiven(plan.getId(), TODAY, TODAY));
+    }
+
+    @Test
+    void historyOfHasSortedOwnerNamesAndThePlans() {
+        Account zed = owner("zed");
+        Account ana = owner("Ana");
+        Pet rex = pet(zed, "Rex");
+        petCare.addOwner(rex.getId(), ana.getId(), TODAY);
+        petCare.addCarePlan(rex.getId(), "Pills", PlanKind.MEDICATION, TODAY, 7, null);
+
+        PetHistory history = petCare.historyOf(rex.getId(), TODAY);
+
+        assertEquals(rex.getId(), history.pet().getId());
+        assertEquals(List.of("Ana", "zed"), history.ownerNames());
+        assertEquals(1, history.plans().size());
+        assertEquals(TODAY, history.exportedOn());
+    }
+
+    @Test
+    void historyOfAPetWithoutPlansHasNoPlans() {
+        Pet rex = pet(owner("Ana"), "Rex");
+
+        assertTrue(petCare.historyOf(rex.getId(), TODAY).plans().isEmpty());
+    }
+
+    @Test
+    void historyOfAnUnknownPetFails() {
+        assertThrows(NoSuchElementException.class, () -> petCare.historyOf(99, TODAY));
     }
 }

@@ -19,3 +19,6 @@ out/
 Thumbs.db
 
 .claude/settings.local.json
+
+# Exported pet histories
+exports/
