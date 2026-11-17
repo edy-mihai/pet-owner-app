@@ -17,14 +17,19 @@ public class ConsoleApp {
             options = Options.parse(args);
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
-            System.err.println("Usage: ConsoleApp [--export-dir=PATH]");
+            System.err.println("Usage: ConsoleApp [--export-dir=PATH] [--demo]");
             System.exit(2);
             return;
         }
         PetCare petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
                 new InMemoryCarePlanBook());
         LocalDate today = LocalDate.now();
-        Input input = new Input(new Scanner(System.in), System.out);
+        if (options.demo()) {
+            DemoData.Summary loaded = DemoData.load(petCare, today);
+            System.out.println("Demo data loaded: " + loaded.accounts() + " accounts, " + loaded.pets()
+                    + " pets, " + loaded.plans() + " care plans.");
+        }
+        Input input =new Input(new Scanner(System.in), System.out);
         new Menu(input, petCare, System.out, today, options.exportDir()).run();
     }
 }
