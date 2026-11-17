@@ -13,8 +13,12 @@ import io.github.edymihai.petowner.careplan.PlanKind;
 import io.github.edymihai.petowner.careplan.TodayItem;
 import io.github.edymihai.petowner.pet.Pet;
 import io.github.edymihai.petowner.pet.Species;
+import io.github.edymihai.petowner.report.HistoryFile;
+import io.github.edymihai.petowner.report.PetHistoryReport;
 
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -28,12 +32,16 @@ public class Menu {
     private final PetCare petCare;
     private final PrintStream out;
     private final LocalDate today;
+    private final Path exportDir;
+    private final PetHistoryReport report = new PetHistoryReport();
+    private final HistoryFile historyFile = new HistoryFile();
 
-    public Menu(Input input, PetCare petCare, PrintStream out, LocalDate today) {
+    public Menu(Input input, PetCare petCare, PrintStream out, LocalDate today, Path exportDir) {
         this.input = input;
         this.petCare = petCare;
         this.out = out;
         this.today = today;
+        this.exportDir = exportDir;
     }
 
     /** Runs until the user picks 0 or the input ends. */
@@ -86,13 +94,17 @@ public class Menu {
             out.println("3) Delete");
             out.println("4) Add co-owner");
             out.println("5) Remove co-owner");
+            out.println("6) Export history");
+            out.println("7) View an exported history");
             out.println("0) Back");
-            switch (input.readInt("Choose: ", 0, 5)) {
+            switch (input.readInt("Choose: ", 0, 7)) {
                 case 1 -> addPet();
                 case 2 -> listPets();
                 case 3 -> deletePet();
                 case 4 -> addCoOwner();
                 case 5 -> removeCoOwner();
+                case 6 -> exportHistory();
+                case 7 -> viewHistory();
                 default -> inMenu = false;
             }
         }
@@ -302,6 +314,45 @@ public class Menu {
             }
         } catch (CannotRemoveLastOwnerException | NoSuchElementException | IllegalArgumentException e) {
             out.println(e.getMessage());
+        }
+    }
+
+    private void exportHistory() {
+        try {
+            Optional<Account> owner = chooseAccountByName("Owner name: ");
+            if (owner.isEmpty()) {
+                return;
+            }
+            Optional<Pet> pet = choosePetOf(owner.get());
+            if (pet.isEmpty()) {
+                return;
+            }
+            Pet p = pet.get();
+            List<String> lines = report.format(petCare.historyOf(p.getId(), today));
+            Path saved = historyFile.write(exportDir, HistoryFile.fileName(p.getName(), p.getId(), today), lines);
+            out.println("Saved to " + saved);
+        } catch (IOException e) {
+            out.println("Could not write the file: " + e.getMessage());
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            out.println(e.getMessage());
+        }
+    }
+
+    private void viewHistory() {
+        try {
+            List<Path> files = historyFile.list(exportDir);
+            if (files.isEmpty()) {
+                out.println("No exported files yet.");
+                return;
+            }
+            for (int i = 0; i < files.size(); i++) {
+                out.println((i + 1) + ") " + files.get(i).getFileName());
+            }
+            Path file = files.get(input.readInt("Which file? ", 1, files.size()) - 1);
+            out.println();
+            historyFile.read(file).forEach(out::println);
+        } catch (IOException e) {
+            out.println("Could not read the file: " + e.getMessage());
         }
     }
 

@@ -7,10 +7,14 @@ import io.github.edymihai.petowner.careplan.InMemoryCarePlanBook;
 import io.github.edymihai.petowner.pet.InMemoryPetRegister;
 import io.github.edymihai.petowner.pet.Species;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Scanner;
 
@@ -26,6 +30,9 @@ class MenuTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 13);
 
+    @TempDir
+    Path exportDir;
+
     private final ByteArrayOutputStream output = new ByteArrayOutputStream();
     private final PetCare petCare = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
             new InMemoryCarePlanBook());
@@ -33,7 +40,7 @@ class MenuTest {
     private String run(String script) {
         PrintStream out = new PrintStream(output);
         Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out);
-        new Menu(input, petCare, out, TODAY).run();
+        new Menu(input, petCare, out, TODAY, exportDir).run();
         return output.toString();
     }
 
@@ -226,7 +233,7 @@ class MenuTest {
 
         String nl = System.lineSeparator();
         assertTrue(text.contains("3) Delete" + nl + "0) Back"));
-        assertTrue(text.contains("5) Remove co-owner" + nl + "0) Back"));
+        assertTrue(text.contains("7) View an exported history" + nl + "0) Back"));
         assertTrue(text.contains("4) Mark as given" + nl + "0) Back"));
         // main menu is shown at start and after each of the three submenus
         assertEquals(4, text.split("1\\) Accounts", -1).length - 1);
@@ -268,7 +275,7 @@ class MenuTest {
     @Test
     void endOfInputInsideASubmenuExitsCleanly() {
         for (String script : new String[] {"1\n", "1\n2\n0\n2\n", "3\n"}) {
-            assertTrue(new MenuRun(script).text().contains("Goodbye."), script);
+            assertTrue(new MenuRun(script, exportDir).text().contains("Goodbye."), script);
         }
     }
 
@@ -429,17 +436,57 @@ class MenuTest {
         assertFalse(text.contains("Which plan?"));
     }
 
+    // Pets submenu: 6 = Export history, 7 = View an exported history. TODAY is 2026-11-13.
+    @Test
+    void exportHistoryWritesAFileAndPrintsItsPath() throws IOException {
+        String text = run(ANA_WITH_REX + "2\n6\nAna\n1\n0\n0\n");
+
+        Path expected = exportDir.resolve("rex-1-history-2026-11-13.txt");
+        assertTrue(text.contains("Saved to " + expected));
+        assertTrue(Files.readAllLines(expected).contains("Pet history: Rex"));
+    }
+
+    @Test
+    void viewHistoryPrintsTheContentsOfTheChosenFile() {
+        String text = run(ANA_WITH_REX + "2\n6\nAna\n1\n7\n1\n0\n0\n");
+
+        assertTrue(text.contains("1) rex-1-history-2026-11-13.txt"));
+        assertTrue(text.contains("Owners: Ana"));
+        assertTrue(text.contains("No care plans."));
+    }
+
+    @Test
+    void viewHistoryWithNoFilesSaysSo() {
+        String text = run("2\n7\n0\n0\n");
+
+        assertTrue(text.contains("No exported files yet."));
+        assertFalse(text.contains("Which file?"));
+    }
+
+    @Test
+    void exportToAnUnwritableFolderPrintsTheErrorAndStaysInTheSubmenu() throws IOException {
+        Path blocker = Files.writeString(exportDir.resolve("blocker"), "x");
+        PrintStream out = new PrintStream(output);
+        Input input = new Input(new Scanner(new ByteArrayInputStream(
+                (ANA_WITH_REX + "2\n6\nAna\n1\n0\n0\n").getBytes())), out);
+        new Menu(input, petCare, out, TODAY, blocker).run();
+
+        String text = output.toString();
+        assertTrue(text.contains("Could not write the file:"));
+        assertTrue(text.contains("Goodbye."));
+    }
+
     /** Runs a script on a fresh PetCare, so one test can try several scripts. */
     private static final class MenuRun {
         private final String text;
 
-        MenuRun(String script) {
+        MenuRun(String script, Path exportDir) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             PrintStream out = new PrintStream(bytes);
             Input input = new Input(new Scanner(new ByteArrayInputStream(script.getBytes())), out);
             PetCare care = new PetCare(new InMemoryAccountDirectory(), new InMemoryPetRegister(),
                     new InMemoryCarePlanBook());
-            new Menu(input, care, out, TODAY).run();
+            new Menu(input, care, out, TODAY, exportDir).run();
             text = bytes.toString();
         }
 
