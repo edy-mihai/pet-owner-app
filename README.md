@@ -4,8 +4,12 @@ A Java application for pet owners to log vet visits and treatments, find nearby
 pet services, and get food recommendations. Built as a university project
 (Java, databases, entrepreneurship) and as a portfolio piece.
 
-**Status:** early setup. A Spring Boot 4.1.x skeleton builds, tests and runs;
-the application itself is not implemented yet.
+**Status:** mid-term version. A console program (Java, in-memory storage, no
+database needed) manages accounts, pets and co-owners, care plans with a
+"today" list and "mark as given", and exports a pet's history to a text file.
+Vet visits, the database storage, the REST API and the map are not built yet.
+A Spring Boot 4.1.x skeleton with a PostgreSQL connection builds, tests and
+runs, but has no endpoints yet.
 
 ## Requirements
 
@@ -34,6 +38,29 @@ On Linux or macOS use `./mvnw verify`.
 ```
 
 The app listens on port 8080 and has no endpoints yet.
+
+## Run the console app
+
+The console program is the Java mid-term demo. It needs no database and no
+Spring. All data is kept in memory and is lost when you exit.
+
+```powershell
+.\mvnw.cmd -B clean compile
+java -cp target\classes io.github.edymihai.petowner.console.ConsoleApp
+```
+
+Optional arguments:
+
+- `--demo`: load sample accounts, pets and care plans (default: off, starts empty).
+- `--export-dir=PATH`: folder for exported pet histories (default: `exports/`).
+- `--color`: force colors on, even without a real terminal (default: automatic).
+- `--no-color`: turn colors off; wins over `--color` (default: automatic).
+
+Example: `java -cp target\classes io.github.edymihai.petowner.console.ConsoleApp --demo --no-color`
+
+Exports go to `exports/` unless you pass `--export-dir`. Colors are on only in
+a real terminal (and off if the `NO_COLOR` environment variable is set), unless
+you force them with `--color`. An unknown argument prints the usage and exits.
 
 ## Database (PostgreSQL 18 in Docker)
 
